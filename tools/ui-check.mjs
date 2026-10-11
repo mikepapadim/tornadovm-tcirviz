@@ -103,9 +103,9 @@ report.cfgBackEdges = await evaluate(`document.querySelectorAll('#pane-a .edges 
 await evaluate(`[...document.querySelectorAll('#pane-a .val')].find(v => v.textContent === '%v')?.click()`);
 await sleep(300);
 await shot('06-cfg');
-// Metal: experimental, the diagnostic shows
+// Metal: compiles to MSL like the other targets
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'Metal').click()`);
-await waitFor(`document.querySelector('#status').textContent.includes('TC-E')`);
+await waitFor(`document.querySelector('#status').textContent.includes('Metal') && !document.querySelector('#status').textContent.includes('TC-E')`);
 report.metalStatus = await evaluate(`document.querySelector('#status').textContent`);
 await shot('07-metal');
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'CUDA').click()`);

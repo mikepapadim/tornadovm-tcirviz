@@ -30,7 +30,7 @@ export const STAGES = {
   },
   tiles: { title: 'Tiles', what: 'TileContext operations get their shapes and types checked and lowered.' },
   atomics: { title: 'Atomics', what: 'AtomicInteger counters get their slots in the atomics region the runtime passes to every kernel.' },
-  reduce: { title: 'Reductions', what: '@Reduce loops become a tree reduction in local memory plus a final combine, as on the Graal path.' },
+  reduce: { title: 'Reductions', what: '@Reduce loops become a tree reduction in local memory plus a final combine.' },
   batch: { title: 'Batch offset', what: 'In batched execution each launch sees one chunk: indices are shifted by the chunk offset.' },
   parallel: {
     title: 'Parallel loops',
@@ -70,7 +70,7 @@ export const PASSES = {
   unroll: 'Fully unrolls loops with a small constant trip count.',
   gvn: 'Global value numbering: an expression computed twice with the same operands is computed once and reused.',
   licm: 'Loop-invariant code motion: an expression that does not change inside a loop moves before the loop.',
-  'math-peepholes': 'Math rewrites the Graal path also does: 1 / sqrt(x) -> rsqrt(x).',
+  'math-peepholes': 'Math rewrites (tornado.enable.mathOptimizations, on by default): 1 / sqrt(x) -> rsqrt(x).',
 };
 
 // Mnemonic prefixes of TC IR, explained on hover.

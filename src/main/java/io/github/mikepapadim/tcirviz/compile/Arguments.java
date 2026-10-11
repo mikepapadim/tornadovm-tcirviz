@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import uk.ac.manchester.tornado.runtime.common.FieldLayout;
 import uk.ac.manchester.tornado.tc.tornado.ObjectLayout;
 import uk.ac.manchester.tornado.tc.tornado.ValueSpecialisation.Fact;
 
@@ -164,45 +165,26 @@ public final class Arguments {
         }
     }
 
-    private static void describe(Object object, boolean includeSuper, List<ObjectLayout> out, Set<Class<?>> seen) throws ReflectiveOperationException {
+    /** The device layout of {@code object} and the objects it references: the runtime's own {@link FieldLayout}. */
+    private static void describe(Object object, boolean includeSuper, List<ObjectLayout> out, Set<Class<?>> seen) {
         var cls = object.getClass();
         if (!seen.add(cls)) {
             return;
         }
+        var layout = FieldLayout.of(cls);
         var offsets = new LinkedHashMap<String, Integer>();
         var references = new LinkedHashMap<String, String>();
-        for (var c = cls; c != null && (c == cls || includeSuper); c = c.getSuperclass()) {
-            for (var field : c.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers())) {
-                    continue;
-                }
-                offsets.putIfAbsent(field.getName(), (int) fieldOffset(field));
-                var t = field.getType();
-                if (!t.isPrimitive() && !t.isArray() && !isNativeArray(t)) {
-                    field.setAccessible(true);
-                    var value = field.get(object);
-                    if (value != null) {
-                        references.put(field.getName(), value.getClass().getName());
-                        describe(value, includeSuper, out, seen);
-                    }
+        for (var field : layout.fields(includeSuper)) {
+            offsets.putIfAbsent(field.getName(), layout.offset(field));
+            var t = field.getType();
+            if (!t.isPrimitive() && !t.isArray() && !isNativeArray(t)) {
+                var value = FieldLayout.get(field, object);
+                if (value != null) {
+                    references.put(field.getName(), value.getClass().getName());
+                    describe(value, includeSuper, out, seen);
                 }
             }
         }
         out.add(new ObjectLayout(cls.getName(), Map.copyOf(offsets), Map.copyOf(references)));
-    }
-
-    private static Object unsafe;
-    private static Method objectFieldOffset;
-
-    /** The field's offset in the JVM object, which the device copy keeps (through Unsafe, by reflection: no compile-time dependency). */
-    private static synchronized long fieldOffset(Field field) throws ReflectiveOperationException {
-        if (unsafe == null) {
-            var type = Class.forName("sun.misc.Unsafe");
-            var the = type.getDeclaredField("theUnsafe");
-            the.setAccessible(true);
-            unsafe = the.get(null);
-            objectFieldOffset = type.getMethod("objectFieldOffset", Field.class);
-        }
-        return (Long) objectFieldOffset.invoke(unsafe, field);
     }
 }

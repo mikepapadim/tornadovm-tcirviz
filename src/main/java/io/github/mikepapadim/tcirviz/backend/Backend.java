@@ -141,7 +141,7 @@ public interface Backend {
         }
     }
 
-    /** Apple Metal Shading Language: shown when the TC build has the Metal dialect. */
+    /** Apple Metal Shading Language with the TornadoVM kernel ABI. */
     final class Metal implements Backend {
         @Override
         public String id() {
@@ -166,7 +166,7 @@ public interface Backend {
 
         @Override
         public String note() {
-            return "experimental: the TC Metal dialect is not finished; the IR stages still show";
+            return "Metal Shading Language with the TornadoVM kernel ABI (fast math, no fp64)";
         }
     }
 }

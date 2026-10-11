@@ -1,6 +1,6 @@
 # tcirviz
 
-An interactive explorer for **TC**, the Graal-free TornadoVM compiler. Type a Java kernel and watch
+An interactive explorer for **TC**, TornadoVM's kernel compiler. Type a Java kernel and watch
 it become GPU code, one stage at a time. You can follow any line, bytecode or IR value through
 every stage to the CUDA or OpenCL statement it ends up in.
 
@@ -20,7 +20,7 @@ It opens `http://127.0.0.1:7878/` in the browser. Compilation is headless, so no
 | **Bytecode** | What `javac` produced, with each bytecode index (bci) tied to its Java line. |
 | **TC IR** | Shown after every pipeline stage (frontend, inline, specialise, parallel loops, legality, ABI lowering, ...) and after **every optimisation pass** (canonicalize, cfg-simplify, dce, unroll, gvn, licm, math-peepholes), with the IR size and time of each. |
 | **Structured IR** | The kernel after SSA destruction and control-flow structuring: if/while/break, still target-neutral. |
-| **Target code** | CUDA C++ or OpenCL C, exactly as the TornadoVM runtime would install it. Metal is listed and stops at TC-E4001 until TC has a Metal dialect. |
+| **Target code** | CUDA C++, OpenCL C or Metal Shading Language, exactly as the TornadoVM runtime would install it. |
 
 **Follow anything.** Click a Java line, a bytecode, an IR value (`%x`) or a line of target code:
 - Every pane highlights what belongs to it: the lines that define it, the lines that use it, and the lines from the same Java line.
@@ -50,7 +50,7 @@ removed.
 **Specialise like the runtime.** TornadoVM compiles every task for its actual arguments. The
 *Arguments* row sets array lengths, scalar values and object sizes, so you can see constant loop
 bounds and folded sizes appear. Object arguments such as `Matrix2DFloat` are built for real, and
-their field layouts are read from the JVM, exactly as the runtime does it.
+their device layouts come from the runtime's own `FieldLayout`, exactly as when a kernel runs.
 
 **Targets.** Switch between CUDA (with the compute capability, fp64 and fp16 as options), OpenCL and
 Metal. See [docs/architecture.md](docs/architecture.md) for adding a target.

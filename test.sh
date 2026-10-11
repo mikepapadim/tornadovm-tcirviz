@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Headless checks: every example compiles on CUDA and OpenCL with a complete, linked trace; then,
+# Headless checks: every example compiles on CUDA, OpenCL and Metal with a complete, linked trace; then,
 # when Chrome is present, the UI is driven end to end (tools/ui-check.mjs) and must log no errors.
 set -euo pipefail
 cd "$(dirname "$0")"
 ./build.sh >/dev/null
 fail=0
 for f in src/main/resources/tcirviz/examples/*.java; do
-  for b in cuda opencl; do
+  for b in cuda opencl metal; do
     bin/tcirviz --json "$f" --backend "$b" | python3 tools/check-trace.py "$(basename "$f" .java)" "$b" || fail=1
   done
 done
@@ -21,7 +21,7 @@ if command -v google-chrome >/dev/null && command -v node >/dev/null; then
 import json, sys
 r = json.load(open('build/ui-check.json'))
 problems = [k for k in ('chips', 'javaLineSteps', 'valueSteps', 'defHighlights', 'diffAdded') if not r.get(k)]
-if r['errors'] or problems or not r['openclHasKernel'] or 'TC-E4001' not in r['metalStatus']:
+if r['errors'] or problems or not r['openclHasKernel'] or 'Metal' not in r['metalStatus'] or 'TC-E' in r['metalStatus']:
     print('UI check FAILED:', r['errors'], problems); sys.exit(1)
 print('UI check ok: %d chips, journey %d steps, no console errors' % (r['chips'], r['valueSteps']))
 PY

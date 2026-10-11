@@ -52,8 +52,7 @@ public final class MyTarget implements Backend {
 List it in `META-INF/services/io.github.mikepapadim.tcirviz.backend.Backend` and put its jar on the
 classpath, for example via `tornado --tcirviz --jvm "-cp ..."`. It then appears in the UI with its
 options. The code still comes from TC: a target is a set of TC capabilities plus a TC dialect. Until
-TC has the dialect, the IR stages still show, and generation stops with TC's diagnostic, as Metal
-does today.
+TC has the dialect, the IR stages still show, and generation stops with TC's diagnostic.
 
 Other languages for the highlighter go in `web/highlight.js` (`forKind`).
 
