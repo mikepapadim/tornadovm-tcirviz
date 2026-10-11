@@ -10,7 +10,18 @@ for f in src/main/resources/tcirviz/examples/*.java; do
     bin/tcirviz --json "$f" --backend "$b" | python3 tools/check-trace.py "$(basename "$f" .java)" "$b" || fail=1
   done
 done
-if command -v google-chrome >/dev/null && command -v node >/dev/null; then
+# The same compile through the SDK's argfile (java @tornado-argfile: the SDK's jars on the module path).
+if [ -f "$TORNADOVM_HOME/tornado-argfile" ]; then
+  "${JAVA_HOME:+$JAVA_HOME/bin/}java" @"$TORNADOVM_HOME/tornado-argfile" -cp build/tcirviz.jar io.github.mikepapadim.tcirviz.TcIrViz \
+    --json src/main/resources/tcirviz/examples/Saxpy.java --backend opencl | python3 tools/check-trace.py "Saxpy (argfile)" opencl || fail=1
+fi
+if [ -z "${CHROME:-}" ]; then
+  for c in google-chrome chromium "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"; do
+    if command -v "$c" >/dev/null 2>&1 || [ -x "$c" ]; then CHROME="$c"; break; fi
+  done
+fi
+export CHROME
+if [ -n "${CHROME:-}" ] && command -v node >/dev/null; then
   port=$((7900 + RANDOM % 90))
   bin/tcirviz --no-open --port "$port" > build/server.log 2>&1 &
   server=$!

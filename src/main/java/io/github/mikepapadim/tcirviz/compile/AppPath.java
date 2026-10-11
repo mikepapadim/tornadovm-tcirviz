@@ -79,9 +79,23 @@ public final class AppPath {
         return loader;
     }
 
-    /** For javac: the application classpath after the tool's own. */
+    /**
+     * For javac: the tool's own classpath, the jars on its module path (run as {@code java @tornado-argfile},
+     * the SDK's jars are modules, which javac does not see from the classpath), then the application's.
+     */
     public String javacClasspath() {
         var sb = new StringBuilder(System.getProperty("java.class.path"));
+        for (var entry : split(System.getProperty("jdk.module.path"))) {
+            if (Files.isDirectory(entry)) {
+                try (var files = Files.list(entry)) {
+                    files.filter(f -> f.toString().endsWith(".jar")).sorted().forEach(f -> sb.append(File.pathSeparator).append(f));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            } else {
+                sb.append(File.pathSeparator).append(entry);
+            }
+        }
         classpath.forEach(p -> sb.append(File.pathSeparator).append(p));
         return sb.toString();
     }

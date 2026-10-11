@@ -2,7 +2,7 @@
 
 An interactive explorer for **TC**, TornadoVM's kernel compiler. Type a Java kernel and watch
 it become GPU code, one stage at a time. You can follow any line, bytecode or IR value through
-every stage to the CUDA or OpenCL statement it ends up in.
+every stage to the CUDA, OpenCL or Metal statement it ends up in.
 
 ```
 tornado --tcirviz [MyKernels.java]
@@ -74,6 +74,32 @@ tornado --tcirviz --params "--port 9000 --no-open"
 Without the launcher, run `bin/tcirviz [File.java] [--port N] [--no-open]`. To print the trace as
 JSON for scripts, run `bin/tcirviz --json File.java [--method m] [--backend cuda|opencl|metal]`.
 
+### With `java` and the SDK's argfile
+
+The SDK's `tornado-argfile` holds the JVM options a TornadoVM application runs with (module path,
+`--enable-preview`, native access). tcirviz runs with it like any other TornadoVM program, which is
+how to start it from an IDE run configuration or a script with no Python launcher:
+
+```bash
+source ~/tornadovm-compiler/setvars.sh
+TCIRVIZ=$TORNADOVM_HOME/share/java/tcirviz/tcirviz.jar          # after ./install.sh (or build/tcirviz.jar)
+
+# the UI, on an example or your own kernels
+java @"$TORNADOVM_HOME/tornado-argfile" -cp "$TCIRVIZ" io.github.mikepapadim.tcirviz.TcIrViz
+java @"$TORNADOVM_HOME/tornado-argfile" -cp "$TCIRVIZ" io.github.mikepapadim.tcirviz.TcIrViz MyKernels.java --port 9000
+
+# open a real application's kernels (Open class…), with its sources
+java @"$TORNADOVM_HOME/tornado-argfile" -cp "$TCIRVIZ" io.github.mikepapadim.tcirviz.TcIrViz \
+     --classpath target/my-app.jar --sourcepath src/main/java
+
+# the trace as JSON, for scripts
+java @"$TORNADOVM_HOME/tornado-argfile" -cp "$TCIRVIZ" io.github.mikepapadim.tcirviz.TcIrViz \
+     --json MyKernels.java --method saxpy --backend metal > saxpy.json
+```
+
+The kernels need the TornadoVM API to compile; tcirviz passes the argfile's module path to its
+in-process `javac`, so nothing else goes on `-cp`. No GPU is used: compilation is headless.
+
 There are no dependencies beyond the JDK and the SDK's jars:
 - the server is the JDK's `HttpServer`, bound to loopback only;
 - the UI is plain ES modules, with no CDN and no build step;
@@ -95,10 +121,11 @@ There are no dependencies beyond the JDK and the SDK's jars:
 ./test.sh
 ```
 
-It compiles every example for CUDA and OpenCL and validates each trace with
+It compiles every example for CUDA, OpenCL and Metal and validates each trace with
 `tools/check-trace.py`: every stage kind is present, lines are linked and values are known. When
 Chrome and Node are available, it also drives the UI headlessly (`tools/ui-check.mjs`, over the
-DevTools protocol) and fails on any console error.
+DevTools protocol) and fails on any console error. Chrome is found as `google-chrome`, `chromium`,
+the macOS application, or `$CHROME`.
 
 ## How it works
 
