@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tcirviz · TC compiler explorer</title>
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e8590c'/%3E%3Cpath d='M8 9h16M16 9v15M10 17h12' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="logo">tc</span><b>irviz</b><span class="sub">TornadoVM TC compiler, stage by stage</span></div>
+  <div class="controls">
+    <label class="ctl">Example <select id="example"><option value="">—</option></select></label>
+    <label class="ctl">Kernel <select id="kernel"></select></label>
+    <div class="seg" id="backends" role="radiogroup" aria-label="Target"></div>
+    <span id="backend-options"></span>
+    <label class="ctl chk" title="1/sqrt(x) -> rsqrt(x), as on the Graal path"><input type="checkbox" id="mathopt" checked> math opts</label>
+    <button id="compile" class="primary" title="Compile (Ctrl+Enter)">Compile <kbd>⌃⏎</kbd></button>
+    <button id="theme" class="icon" title="Light / dark">◐</button>
+    <button id="help" class="icon" title="How to use (?)">?</button>
+  </div>
+</header>
+
+<section class="pipeline" aria-label="Pipeline">
+  <div class="rail-head">
+    <span class="title">Pipeline</span>
+    <label class="chk"><input type="checkbox" id="show-unchanged"> passes that changed nothing</label>
+    <span id="fn-pick"></span>
+    <span id="status" class="status"></span>
+  </div>
+  <div id="spark" class="spark"></div>
+  <div id="rail" class="rail"></div>
+</section>
+
+<main class="work" id="work">
+  <section class="pane java" id="pane-java">
+    <div class="pane-head"><span class="pane-title">Java</span><span class="hint">click a line to follow it</span></div>
+    <div class="editor">
+      <pre class="gutter" id="gutter" aria-hidden="true"></pre>
+      <div class="edit-wrap">
+        <pre class="hl" id="java-hl" aria-hidden="true"></pre>
+        <textarea id="java" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+      </div>
+    </div>
+    <div class="args" id="args" title="TornadoVM compiles every task for its actual arguments: these values are the facts TC specialises on"></div>
+    <div class="problems" id="problems"></div>
+  </section>
+  <div class="split" data-left="pane-java"></div>
+  <section class="pane view" id="pane-a"></section>
+  <div class="split" data-left="pane-a"></div>
+  <section class="pane view" id="pane-b"></section>
+</main>
+
+<aside class="journey" id="journey">
+  <div class="j-head"><span class="title">Journey</span><span id="j-sub" class="hint">select a Java line, a bytecode, an IR value or a line of target code</span><button class="icon" id="j-close" title="Hide">×</button></div>
+  <div id="j-body" class="j-body"></div>
+</aside>
+
+<div id="tip" class="tip" hidden></div>
+
+<dialog id="help-dlg">
+  <h2>tcirviz</h2>
+  <p>Shows how the TornadoVM <b>TC</b> compiler turns a Java kernel into GPU code, one stage at a time. Nothing runs on a GPU: compilation is headless.</p>
+  <ul>
+    <li><b>Pipeline</b>: every stage and optimisation pass, with the IR size after it. Click a chip to show it in the middle pane, <kbd>Shift</kbd>-click for the right pane. <kbd>←</kbd>/<kbd>→</kbd> step through the pipeline.</li>
+    <li><b>Follow</b>: click a Java line, a bytecode, an IR value (<code>%x</code>) or a line of target code. Every pane highlights what belongs to it (<span class="hl-def sample">defines</span> <span class="hl-use sample">uses</span> <span class="hl-loc sample">same Java line</span>), and the <b>Journey</b> lists its path from Java to target code: where it is created, changed and removed, and by which pass.</li>
+    <li><b>Diff</b>: a pane's <i>Δ</i> button shows what the stage changed against the previous one.</li>
+    <li><b>Targets</b>: CUDA, OpenCL, Metal (experimental). New targets plug in as a Java service (<code>io.github.mikepapadim.tcirviz.backend.Backend</code>).</li>
+    <li>Keys: <kbd>Ctrl+Enter</kbd> compile · <kbd>Esc</kbd> clear the selection · <kbd>?</kbd> this help.</li>
+  </ul>
+  <form method="dialog"><button class="primary">Got it</button></form>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

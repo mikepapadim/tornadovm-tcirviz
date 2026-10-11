@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# tcirviz without the tornado launcher: bin/tcirviz [File.java] [--port N] [--no-open] | --json File.java
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+: "${TORNADOVM_HOME:?set TORNADOVM_HOME to a TornadoVM SDK with the TC compiler}"
+JAR="${TCIRVIZ_JAR:-$HERE/build/tcirviz.jar}"
+[ -f "$JAR" ] || "$HERE/build.sh" >/dev/null
+exec "${JAVA_HOME:+$JAVA_HOME/bin/}java" --enable-preview -cp "$TORNADOVM_HOME/share/java/tornado/*:$JAR" io.github.mikepapadim.tcirviz.TcIrViz "$@"
