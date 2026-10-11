@@ -92,11 +92,22 @@ await sleep(300);
 report.openclStatus = await evaluate(`document.querySelector('#status').textContent`);
 report.openclHasKernel = await evaluate(`[...document.querySelectorAll('#pane-b .ln')].some(l => l.textContent.includes('__kernel'))`);
 await shot('05-reduction-opencl-dark');
+// control-flow graph of the Branches example after the frontend
+await evaluate(`(() => { const s = document.querySelector('#example'); s.value = 'Branches'; s.dispatchEvent(new Event('change')); })()`);
+await waitFor(`document.querySelector('#status').textContent.includes('classify →')`);
+await evaluate(`document.querySelector('#pane-a [data-act=graph]').click()`);
+await sleep(500);
+report.cfgBlocks = await evaluate(`document.querySelectorAll('#pane-a .blk').length`);
+report.cfgEdges = await evaluate(`document.querySelectorAll('#pane-a .edges path').length`);
+report.cfgBackEdges = await evaluate(`document.querySelectorAll('#pane-a .edges path.back').length`);
+await evaluate(`[...document.querySelectorAll('#pane-a .val')].find(v => v.textContent === '%v')?.click()`);
+await sleep(300);
+await shot('06-cfg');
 // Metal: experimental, the diagnostic shows
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'Metal').click()`);
 await waitFor(`document.querySelector('#status').textContent.includes('TC-E')`);
 report.metalStatus = await evaluate(`document.querySelector('#status').textContent`);
-await shot('06-metal');
+await shot('07-metal');
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'CUDA').click()`);
 await sleep(1500);
 report.errors = errors;

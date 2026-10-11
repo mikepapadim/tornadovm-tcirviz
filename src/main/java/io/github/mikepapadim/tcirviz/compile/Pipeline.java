@@ -27,15 +27,16 @@ import uk.ac.manchester.tornado.tc.runtime.TcTrace;
 public final class Pipeline {
 
     /** What to compile and for which target. */
-    public record Request(String source, String method, String descriptor, String backend, Map<String, String> targetOptions, boolean mathOptimizations, Map<String, String> arguments) {
+    public record Request(String source, String method, String descriptor, String backend, Map<String, String> targetOptions, boolean mathOptimizations, Map<String, String> arguments,
+            String className) {
     }
 
     private Pipeline() {
     }
 
     /** Compiles the source and lists the methods that can be kernels (the UI's kernel picker). */
-    public static Map<String, Object> kernels(String source) {
-        var compiled = JavaSources.compile(source);
+    public static Map<String, Object> kernels(String source, AppPath app) {
+        var compiled = JavaSources.compile(source, app);
         var out = new LinkedHashMap<String, Object>();
         out.put("className", compiled.className());
         out.put("problems", problems(compiled));
@@ -44,9 +45,16 @@ public final class Pipeline {
     }
 
     public static Map<String, Object> compile(Request request) {
+        return compile(request, AppPath.NONE);
+    }
+
+    /** Compiles {@code request.source()}, or, when it is blank, the class {@code request.className()} from the application classpath. */
+    public static Map<String, Object> compile(Request request, AppPath app) {
         long start = System.nanoTime();
         var out = new LinkedHashMap<String, Object>();
-        var compiled = JavaSources.compile(request.source());
+        boolean fromClass = (request.source() == null || request.source().isBlank()) && request.className() != null;
+        var compiled = fromClass ? JavaSources.fromClass(request.className(), app) : JavaSources.compile(request.source(), app);
+        out.put("fromClass", fromClass);
         out.put("className", compiled.className());
         out.put("fileName", compiled.fileName());
         out.put("problems", problems(compiled));

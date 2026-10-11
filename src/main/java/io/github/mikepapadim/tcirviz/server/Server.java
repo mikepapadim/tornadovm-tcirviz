@@ -20,6 +20,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import io.github.mikepapadim.tcirviz.backend.Backend;
+import io.github.mikepapadim.tcirviz.compile.AppPath;
+import io.github.mikepapadim.tcirviz.compile.JavaSources;
 import io.github.mikepapadim.tcirviz.compile.Pipeline;
 
 /**
@@ -34,9 +36,11 @@ public final class Server {
 
     private final HttpServer http;
     private final String initialSource;
+    private final AppPath app;
 
-    public Server(int port, String initialSource) throws IOException {
+    public Server(int port, String initialSource, AppPath app) throws IOException {
         this.initialSource = initialSource;
+        this.app = app;
         http = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
         http.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         http.createContext("/api/", this::api);
@@ -61,7 +65,9 @@ public final class Server {
             Object result = switch (path) {
                 case "/api/info" -> info();
                 case "/api/example" -> example(query(ex, "name"));
-                case "/api/kernels" -> Pipeline.kernels(string(body(ex), "source", ""));
+                case "/api/kernels" -> Pipeline.kernels(string(body(ex), "source", ""), app);
+                case "/api/classes" -> Map.of("classes", app.classes(query(ex, "q"), 200));
+                case "/api/open" -> open(query(ex, "name"));
                 case "/api/compile" -> compile(body(ex));
                 default -> null;
             };
@@ -86,6 +92,7 @@ public final class Server {
         out.put("backends", backends);
         out.put("examples", EXAMPLE_NAMES);
         out.put("initialSource", initialSource);
+        out.put("app", !app.isEmpty());
         return out;
     }
 
@@ -96,6 +103,17 @@ public final class Server {
         try (InputStream in = Server.class.getResourceAsStream(EXAMPLES + name + ".java")) {
             return Map.of("name", name, "source", new String(in.readAllBytes(), StandardCharsets.UTF_8));
         }
+    }
+
+    /** A class of the application: its source when one is found, and its kernel methods. */
+    private Map<String, Object> open(String className) {
+        var out = new LinkedHashMap<String, Object>();
+        out.put("className", className);
+        out.put("source", app.source(className).orElse(null));
+        var compiled = JavaSources.fromClass(className, app);
+        out.put("kernels", compiled.kernels().stream().map(k -> Map.of("name", k.name(), "descriptor", k.descriptor(), "signature", k.signature())).toList());
+        out.put("problems", compiled.problems().stream().map(p -> Map.of("kind", p.kind(), "message", p.message())).toList());
+        return out;
     }
 
     @SuppressWarnings("unchecked")
@@ -109,8 +127,8 @@ public final class Server {
             ((Map<String, Object>) m).forEach((k, v) -> arguments.put(k, v instanceof Double d && d == Math.rint(d) ? Long.toString(d.longValue()) : String.valueOf(v)));
         }
         var request = new Pipeline.Request(string(body, "source", ""), string(body, "method", null), string(body, "descriptor", null), string(body, "backend", "cuda"), options,
-                !Boolean.FALSE.equals(body.get("mathOptimizations")), arguments);
-        return Pipeline.compile(request);
+                !Boolean.FALSE.equals(body.get("mathOptimizations")), arguments, string(body, "className", null));
+        return Pipeline.compile(request, app);
     }
 
     private void files(HttpExchange ex) throws IOException {

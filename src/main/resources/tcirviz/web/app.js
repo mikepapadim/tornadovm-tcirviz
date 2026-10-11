@@ -15,15 +15,18 @@ const S = {
   backend: store.get('backend', 'cuda'),
   targetOptions: store.get('targetOptions', {}),
   method: null,
+  className: null,    // a class of the application compiled from its class file (no source found)
   args: {},           // parameter name -> value the kernel is specialised for
   result: null,
   fn: 0,
   snaps: [],          // snapshots of the current function: bytecode, IR stages and passes, structured, source
   irPrev: [],         // index of the previous snapshot of the same kind family, for diffs and deltas
-  panes: { a: { idx: -1, diff: false }, b: { idx: -1, diff: false } },
+  panes: { a: { idx: -1, diff: false, graph: false }, b: { idx: -1, diff: false, graph: false } },
   sel: { ids: new Set(), line: null, bci: null },
   showUnchanged: store.get('showUnchanged', false),
   life: new Map(),    // value id -> { first, last, gone } snapshot indices
+  succ: new Map(),    // value id -> the value that replaced it
+  pred: new Map(),    // value id -> the value it replaced
   stale: false,
 };
 
@@ -36,6 +39,7 @@ async function boot() {
   renderBackends();
   for (const name of S.info.examples) $('#example').append(new Option(name, name));
   $('#show-unchanged').checked = S.showUnchanged;
+  $('#open').hidden = !S.info.app;
   wire();
   const source = S.info.initialSource || store.get('source', null);
   if (source) {
@@ -73,7 +77,41 @@ function renderBackends() {
 
 const label = (name) => ({ computeCapability: 'sm_', fp64: 'fp64', fp16: 'fp16' }[name] ?? name);
 
+async function openClass(name) {
+  const r = await (await fetch('api/open?name=' + encodeURIComponent(name))).json();
+  S.method = null;
+  S.args = {};
+  S.sel = { ids: new Set(), line: null, bci: null };
+  $('#example').value = '';
+  if (r.source) {
+    S.className = null;
+    setSource(r.source);
+  } else {
+    S.className = name;
+    setSource(`// ${name}: no source found (add --sourcepath, or a -sources.jar next to the jar).\n// The pipeline is compiled from the class file; Java lines still link through the bytecode.\n`);
+  }
+  compile();
+}
+
+function openDialog() {
+  const dlg = $('#open-dlg');
+  const q = $('#open-q');
+  const list = $('#open-list');
+  let t = 0;
+  const search = async () => {
+    const r = await (await fetch('api/classes?q=' + encodeURIComponent(q.value))).json();
+    list.innerHTML = r.classes.map((c) => `<li data-c="${esc(c)}">${esc(c)}</li>`).join('') || '<li>no class matches</li>';
+  };
+  q.oninput = () => { clearTimeout(t); t = setTimeout(search, 120); };
+  q.onkeydown = (e) => { if (e.key === 'Enter') { const first = list.querySelector('[data-c]'); if (first) { dlg.close(); openClass(first.dataset.c); } } };
+  list.onclick = (e) => { const li = e.target.closest('[data-c]'); if (li) { dlg.close(); openClass(li.dataset.c); } };
+  dlg.showModal();
+  q.focus();
+  search();
+}
+
 async function loadExample(name) {
+  S.className = null;
   const r = await (await fetch('api/example?name=' + encodeURIComponent(name))).json();
   $('#example').value = name;
   S.method = null;
@@ -120,7 +158,7 @@ async function compile() {
   store.set('source', source);
   $('#compile').disabled = true;
   status('compiling…');
-  const body = { source, method: S.method, backend: S.backend, targetOptions: S.targetOptions, mathOptimizations: $('#mathopt').checked, arguments: S.args };
+  const body = { source: S.className ? '' : source, className: S.className, method: S.method, backend: S.backend, targetOptions: S.targetOptions, mathOptimizations: $('#mathopt').checked, arguments: S.args };
   let r;
   try {
     r = await (await fetch('api/compile', { method: 'POST', body: JSON.stringify(body) })).json();
@@ -241,9 +279,12 @@ function successor(id) {
   return best;
 }
 
+// The whole line of values one value belongs to: its ancestors (the values it replaced) and successors.
 function chainOf(id) {
-  const chain = [id];
-  for (let next = successor(id); next !== null && !chain.includes(next) && chain.length < 16; next = successor(next)) chain.push(next);
+  let root = id;
+  for (let k = 0; k < 16 && S.pred.has(root); k++) root = S.pred.get(root);
+  const chain = [root];
+  for (let next = S.succ.get(root); next !== undefined && !chain.includes(next) && chain.length < 16; next = S.succ.get(next)) chain.push(next);
   return chain;
 }
 
@@ -266,6 +307,12 @@ function computeLife() {
     if (e.last < lastIr) {
       for (let j = e.last + 1; j < S.snaps.length; j++) if (S.snaps[j].kind === 'ir') { e.gone = j; break; }
     }
+  }
+  S.succ = new Map();
+  S.pred = new Map();
+  for (const id of S.life.keys()) {
+    const next = successor(id);
+    if (next !== null && !S.pred.has(next)) { S.succ.set(id, next); S.pred.set(next, id); }
   }
 }
 
@@ -373,27 +420,105 @@ function renderPane(which) {
   el.innerHTML = `<div class="pane-head"><span class="pane-title">${which === 'a' ? 'Stage' : 'Compare'}</span>
       <select aria-label="Stage">${options}</select>
       <span class="tools"><button data-act="prev" title="Previous stage">‹</button><button data-act="next" title="Next stage">›</button>
+      <button data-act="graph" aria-pressed="${p.graph && s.kind === 'ir'}" ${s.kind === 'ir' ? '' : 'disabled'} title="Control-flow graph: blocks and branches">⧉</button>
       <button data-act="diff" aria-pressed="${p.diff && canDiff}" ${canDiff ? '' : 'disabled'} title="What this stage changed">Δ</button></span></div>
       <div class="about">${about}</div><div class="code" tabindex="0"></div>`;
   $('select', el).onchange = (e) => showSnap(which, +e.target.value);
   el.querySelector('[data-act=prev]').onclick = () => showSnap(which, stepVisible(p.idx, -1));
   el.querySelector('[data-act=next]').onclick = () => showSnap(which, stepVisible(p.idx, 1));
   el.querySelector('[data-act=diff]').onclick = () => { p.diff = !p.diff; renderPane(which); applySelection(); };
+  el.querySelector('[data-act=graph]').onclick = () => { p.graph = !p.graph; renderPane(which); applySelection(); };
   const code = $('.code', el);
   const rows = p.diff && canDiff ? diffRows(S.snaps[S.irPrev[p.idx]], s) : s.lines.map((l) => ({ l, cls: '' }));
   const hl = forKind(s.kind);
   const file = S.result.fileName;
-  code.innerHTML = rows.map((r, n) => {
+  const lineHtml = (r, n) => {
     const ids = [...(r.l.d || []), ...(r.l.u || [])];
     let html = hl(r.l.t);
     if (s.kind === 'ir') html = html.replace(/data-k="(\d+)"/g, (_, k) => `data-v="${ids[+k] ?? ''}"`);
     const ext = r.l.f && file && r.l.f !== file ? ' ext' : '';
     return `<div class="ln ${r.cls}${ext}" data-n="${n}"><i>${n + 1}</i><span>${html || ' '}</span></div>`;
-  }).join('');
-  paneEls[which] = rows.map((r, n) => ({ el: code.children[n], l: r.l }));
+  };
+  if (p.graph && s.kind === 'ir') {
+    code.classList.add('cfg');
+    code.innerHTML = cfgHtml(rows, lineHtml);
+    requestAnimationFrame(() => drawEdges(code));
+  } else {
+    code.innerHTML = rows.map(lineHtml).join('');
+  }
+  const lineEls = code.querySelectorAll('.ln');
+  paneEls[which] = rows.map((r, n) => ({ el: lineEls[n], l: r.l }));
   code.onclick = (e) => onCodeClick(e, which);
   code.onmouseover = (e) => onCodeHover(e);
   code.onmouseout = untip;
+}
+
+// ------------------------------------------------------------------ control-flow graph
+
+const LABEL = /^\^([\w.$?]+)/;
+
+// Blocks as boxes in printed order; the edges are drawn once the boxes are laid out.
+function cfgHtml(rows, lineHtml) {
+  let html = '';
+  let open = false;
+  rows.forEach((r, n) => {
+    const m = r.l.t.match(LABEL);
+    if (m) {
+      if (open) html += '</div>';
+      html += `<div class="blk" data-b="${esc(m[1])}">`;
+      open = true;
+    } else if (!open) {
+      html += lineHtml(r, n);
+      return;
+    }
+    if (r.l.t === '}') { html += '</div>' + lineHtml(r, n); open = false; return; }
+    html += lineHtml(r, n);
+  });
+  if (open) html += '</div>';
+  return `<svg class="edges" aria-hidden="true"></svg><div class="blks">${html}</div>`;
+}
+
+function drawEdges(code) {
+  const svg = code.querySelector('.edges');
+  const blocks = [...code.querySelectorAll('.blk')];
+  if (!svg || !blocks.length) return;
+  const index = new Map(blocks.map((b, i) => [b.dataset.b, i]));
+  const box = code.querySelector('.blks').getBoundingClientRect();
+  const base = code.getBoundingClientRect();
+  const ox = box.left - base.left + code.scrollLeft;
+  const oy = code.scrollTop - base.top;
+  svg.setAttribute('width', code.scrollWidth);
+  svg.setAttribute('height', code.scrollHeight);
+  let paths = '';
+  let laneR = 0, laneL = 0;
+  blocks.forEach((b, i) => {
+    const lines = b.querySelectorAll('.ln');
+    const term = lines[lines.length - 1];
+    if (!term) return;
+    const text = term.textContent;
+    const targets = [...text.matchAll(/\^([\w.$?]+)/g)].map((m) => m[1]);
+    const kind = /cond_br/.test(text) ? ['T', 'F'] : [];
+    const tr = term.getBoundingClientRect();
+    const br = b.getBoundingClientRect();
+    targets.forEach((t, k) => {
+      const j = index.get(t);
+      if (j === undefined) return;
+      const target = blocks[j].getBoundingClientRect();
+      const y1 = tr.top + tr.height / 2 + oy;
+      const y2 = target.top + 9 + oy;
+      if (j === i + 1 && targets.length === 1) return; // falls through to the next box: the layout says it
+      const back = j <= i;
+      const x0 = back ? br.left - base.left + code.scrollLeft : br.right - base.left + code.scrollLeft;
+      const lane = back ? x0 - 10 - (laneL++ % 6) * 7 : Math.max(x0, target.right - base.left + code.scrollLeft) + 10 + (laneR++ % 6) * 7;
+      const xt = back ? target.left - base.left + code.scrollLeft : target.right - base.left + code.scrollLeft;
+      const cls = back ? 'back' : kind[k] === 'F' ? 'f' : 'fw';
+      paths += `<path class="${cls}" d="M${x0},${y1} H${lane} V${y2} H${xt + (back ? -2 : 2)}" marker-end="url(#ah-${cls})"/>`;
+      if (kind[k]) paths += `<text class="${cls}" x="${back ? lane - 10 : lane + 3}" y="${y1 - 3}">${kind[k]}</text>`;
+    });
+  });
+  const marker = (c) => `<marker id="ah-${c}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="${c}" d="M0,0 L8,4 L0,8 z"/></marker>`;
+  svg.innerHTML = `<defs>${marker('fw')}${marker('f')}${marker('back')}</defs>${paths}`;
+  void ox;
 }
 
 function stepVisible(i, dir) {
@@ -508,7 +633,8 @@ function renderJourney() {
   const steps = [];
   const step = (i, name, code, badge = '', n = -1) => steps.push(`<div class="step" data-i="${i}" data-n="${n}"><div class="s-name">${esc(name)}${badge}</div><div class="s-code">${esc(code)}</div></div>`);
   if (ids.size) {
-    const id = S.sel.primary ?? [...ids][0];
+    const picked = S.sel.primary ?? [...ids][0];
+    const id = chainOf(picked)[0];
     const v = S.result.values[id] || {};
     const chainEnd = chainOf(id).at(-1);
     const life = S.life.get(id);
@@ -530,6 +656,7 @@ function renderJourney() {
       }
     }
     const chain = chainOf(S.sel.primary ?? id);
+    const root = chain[0];
     let prevText = null;
     let present = false;
     let link = 0;
@@ -637,6 +764,7 @@ function wire() {
     clearTimeout(t);
     t = setTimeout(renderJava, 60);
     if (!S.stale) { S.stale = true; status('edited: Ctrl+Enter to compile'); }
+    S.className = null; // an edit compiles the editor's text
   });
   ta.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {
@@ -649,6 +777,7 @@ function wire() {
   ta.addEventListener('click', () => select({ line: caretLine() }));
   $('#gutter').onclick = (e) => { const l = e.target.closest('[data-l]'); if (l) select({ line: +l.dataset.l }); };
   $('#compile').onclick = compile;
+  $('#open').onclick = openDialog;
   $('#example').onchange = (e) => e.target.value && loadExample(e.target.value);
   $('#kernel').onchange = (e) => { S.method = e.target.value.split(' ')[0]; S.args = {}; S.sel = { ids: new Set(), line: null, bci: null }; compile(); };
   $('#mathopt').onchange = compile;
@@ -668,6 +797,7 @@ function wire() {
     else if (e.key === 'ArrowLeft') showSnap('a', stepVisible(S.panes.a.idx, -1));
     else if (e.key === '?') $('#help-dlg').showModal();
   });
+  addEventListener('resize', () => { for (const c of document.querySelectorAll('.code.cfg')) drawEdges(c); });
   // column splitters
   for (const sp of document.querySelectorAll('.split')) {
     sp.onpointerdown = (e) => {
@@ -678,6 +808,7 @@ function wire() {
         const w = Math.max(160, w0 + ev.clientX - start);
         if (sp.dataset.left === 'pane-java') work.style.setProperty('--c1', w + 'px');
         else work.style.setProperty('--c2', w + 'px');
+        for (const c of document.querySelectorAll('.code.cfg')) drawEdges(c);
       };
       sp.setPointerCapture(e.pointerId);
       sp.onpointermove = move;

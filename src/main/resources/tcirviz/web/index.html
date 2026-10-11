@@ -12,6 +12,7 @@
   <div class="brand"><span class="logo">tc</span><b>irviz</b><span class="sub">TornadoVM TC compiler, stage by stage</span></div>
   <div class="controls">
     <label class="ctl">Example <select id="example"><option value="">—</option></select></label>
+    <button id="open" class="ghost" hidden title="Open a kernel class of the application (--classpath)">Open class…</button>
     <label class="ctl">Kernel <select id="kernel"></select></label>
     <div class="seg" id="backends" role="radiogroup" aria-label="Target"></div>
     <span id="backend-options"></span>
@@ -58,6 +59,13 @@
 </aside>
 
 <div id="tip" class="tip" hidden></div>
+
+<dialog id="open-dlg" class="open-dlg">
+  <h2>Open a class</h2>
+  <input id="open-q" placeholder="type part of a class name, e.g. Kernels" autocomplete="off" spellcheck="false">
+  <ul id="open-list"></ul>
+  <form method="dialog"><button>Cancel</button></form>
+</dialog>
 
 <dialog id="help-dlg">
   <h2>tcirviz</h2>

@@ -29,6 +29,20 @@ It opens `http://127.0.0.1:7878/` in the browser. Compilation is headless, so no
 **Diff any stage.** Δ marks what a stage or pass added, changed or removed against the previous one.
 Lines are matched by instruction identity, not by text.
 
+**See the control flow.** ⧉ draws the IR as a control-flow graph:
+- blocks are boxes;
+- branches are arrows, with the true and false edges of `cond_br` labelled T and F;
+- loop back-edges are drawn in orange.
+
+Combined with Δ, it shows what a pass did to the graph.
+
+**Open a real application.** `tornado --tcirviz --params "--classpath app.jar --sourcepath src/main/java"`
+adds *Open class…*, which lists the application's classes and opens their kernel methods. Sources
+are also found in a `*-sources.jar` next to the jar. Without sources, the class file itself is
+compiled. For example, GPULlama3's `TransformerComputeKernelsLayered` (50 kernels) opens with its
+source, and 48 of its kernels compile under the default argument sizes. The other two report
+TC-E4014: their local arrays exceed the 48 KB of shared memory at those sizes.
+
 **Learn as you go.** Each stage and pass has a one-paragraph explanation, and hovering an opcode
 explains it. Values show their type, origin (Java line and bci), and where they are created and
 removed.

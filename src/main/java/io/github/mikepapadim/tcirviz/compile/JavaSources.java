@@ -54,6 +54,44 @@ public final class JavaSources {
     }
 
     public static Compiled compile(String source) {
+        return compile(source, AppPath.NONE);
+    }
+
+    /** A class already on the application classpath (no source compiled): its kernels, loaded from there. */
+    public static Compiled fromClass(String className, AppPath app) {
+        var problems = new ArrayList<Problem>();
+        var simple = className.substring(className.lastIndexOf('.') + 1);
+        try {
+            var type = Class.forName(className, false, app.loader());
+            return new Compiled(simple + ".java", className, null, app.loader(), problems, kernelsOf(type));
+        } catch (ClassNotFoundException | LinkageError e) {
+            problems.add(new Problem("ERROR", 0, 0, "cannot load " + className + ": " + e));
+            return new Compiled(simple + ".java", className, null, null, problems, List.of());
+        }
+    }
+
+    /** The last few compilations, by source text and classpath: switching kernels or targets does not run javac again. */
+    private static final java.util.Map<String, Compiled> CACHE = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, Compiled> eldest) {
+            return size() > 8;
+        }
+    });
+
+    public static Compiled compile(String source, AppPath app) {
+        var key = app.javacClasspath() + '\0' + source;
+        var cached = CACHE.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        var compiled = compileUncached(source, app);
+        if (compiled.ok()) {
+            CACHE.put(key, compiled);
+        }
+        return compiled;
+    }
+
+    private static Compiled compileUncached(String source, AppPath app) {
         var pkg = PACKAGE.matcher(source);
         var cls = PUBLIC_CLASS.matcher(source);
         String simple = cls.find() ? cls.group(1) : null;
@@ -81,7 +119,7 @@ public final class JavaSources {
                 return source;
             }
         };
-        var options = List.of("-g", "-parameters", "-proc:none", "--release", Integer.toString(Runtime.version().feature()), "--enable-preview", "-Xlint:-preview", "-classpath", System.getProperty("java.class.path"), "-d", out.toString());
+        var options = List.of("-g", "-parameters", "-proc:none", "--release", Integer.toString(Runtime.version().feature()), "--enable-preview", "-Xlint:-preview", "-classpath", app.javacClasspath(), "-d", out.toString());
         boolean ok = compiler.getTask(null, null, diagnostics, options, null, List.of(file)).call();
         var problems = new ArrayList<Problem>();
         for (var d : diagnostics.getDiagnostics()) {
@@ -92,25 +130,30 @@ public final class JavaSources {
         }
         ClassLoader loader;
         try {
-            loader = new URLClassLoader(new java.net.URL[] { out.toUri().toURL() }, JavaSources.class.getClassLoader());
+            loader = new URLClassLoader(new java.net.URL[] { out.toUri().toURL() }, app.loader());
         } catch (java.net.MalformedURLException e) {
             throw new IllegalStateException(e);
         }
-        var kernels = new ArrayList<KernelMethod>();
+        List<KernelMethod> kernels = List.of();
         try {
-            var type = Class.forName(className, false, loader);
-            var methods = new ArrayList<>(List.of(type.getDeclaredMethods()));
-            methods.sort(Comparator.comparing(Method::getName));
-            for (var m : methods) {
-                if (Modifier.isStatic(m.getModifiers()) && m.getReturnType() == void.class && !m.isSynthetic() && !m.getName().equals("main") && kernelParameters(m)) {
-                    boolean kc = List.of(m.getParameterTypes()).stream().anyMatch(p -> p.getName().equals(API + ".KernelContext"));
-                    kernels.add(new KernelMethod(m.getName(), descriptor(m), signature(m), kc, m));
-                }
-            }
+            kernels = kernelsOf(Class.forName(className, false, loader));
         } catch (ClassNotFoundException | LinkageError e) {
             problems.add(new Problem("ERROR", 0, 0, "cannot load " + className + ": " + e));
         }
         return new Compiled(fileName, className, out, loader, problems, kernels);
+    }
+
+    private static List<KernelMethod> kernelsOf(Class<?> type) {
+        var kernels = new ArrayList<KernelMethod>();
+        var methods = new ArrayList<>(List.of(type.getDeclaredMethods()));
+        methods.sort(Comparator.comparing(Method::getName));
+        for (var m : methods) {
+            if (Modifier.isStatic(m.getModifiers()) && m.getReturnType() == void.class && !m.isSynthetic() && !m.getName().equals("main") && kernelParameters(m)) {
+                boolean kc = List.of(m.getParameterTypes()).stream().anyMatch(p -> p.getName().equals(API + ".KernelContext"));
+                kernels.add(new KernelMethod(m.getName(), descriptor(m), signature(m), kc, m));
+            }
+        }
+        return kernels;
     }
 
     private static boolean kernelParameters(Method m) {

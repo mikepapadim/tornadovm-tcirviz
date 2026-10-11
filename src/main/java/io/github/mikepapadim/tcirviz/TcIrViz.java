@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import io.github.mikepapadim.tcirviz.compile.AppPath;
 import io.github.mikepapadim.tcirviz.compile.Pipeline;
 import io.github.mikepapadim.tcirviz.server.Json;
 import io.github.mikepapadim.tcirviz.server.Server;
@@ -31,6 +32,8 @@ public final class TcIrViz {
         String json = null;
         String method = null;
         String backend = "cuda";
+        String classpath = null;
+        String sourcepath = null;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--port" -> port = Integer.parseInt(args[++i]);
@@ -38,6 +41,8 @@ public final class TcIrViz {
                 case "--json" -> json = args[++i];
                 case "--method" -> method = args[++i];
                 case "--backend" -> backend = args[++i];
+                case "--classpath", "-cp" -> classpath = args[++i];
+                case "--sourcepath" -> sourcepath = args[++i];
                 case "-h", "--help" -> {
                     usage();
                     return;
@@ -48,15 +53,15 @@ public final class TcIrViz {
         if (json != null) {
             var source = Files.readString(Path.of(json));
             Map<String, String> none = new LinkedHashMap<>();
-            System.out.println(Json.write(Pipeline.compile(new Pipeline.Request(source, method, null, backend, none, true, new LinkedHashMap<>()))));
+            System.out.println(Json.write(Pipeline.compile(new Pipeline.Request(source, method, null, backend, none, true, new LinkedHashMap<>(), null), AppPath.of(classpath, sourcepath))));
             return;
         }
         var initial = file == null ? null : Files.readString(Path.of(file));
         Server server;
         try {
-            server = new Server(port, initial);
+            server = new Server(port, initial, AppPath.of(classpath, sourcepath));
         } catch (java.net.BindException e) {
-            server = new Server(0, initial); // the default port is taken: any free one
+            server = new Server(0, initial, AppPath.of(classpath, sourcepath)); // the default port is taken: any free one
         }
         server.start();
         var url = "http://127.0.0.1:" + server.port() + "/";
@@ -84,6 +89,8 @@ public final class TcIrViz {
                   tornado --tcirviz [File.java]           start the UI (http://127.0.0.1:7878)
                     --port N                              listen on port N (0: any free port)
                     --no-open                             do not open a browser
+                    --classpath CP                        an application's classes: open its kernels
+                    --sourcepath SP                       its sources (also found in *-sources.jar)
                   tcirviz --json File.java [--method m] [--backend cuda|opencl|metal]
                                                           print the compilation trace as JSON
                 """);

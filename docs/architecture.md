@@ -69,7 +69,9 @@ in `web/docs.js` (`STAGES`, `PASSES`) makes the UI explain them.
 | `GET /api/info` | | backends with options, examples, version |
 | `GET /api/example?name=` | | example source |
 | `POST /api/kernels` | `{source}` | kernel methods, javac problems |
-| `POST /api/compile` | `{source, method, backend, targetOptions, mathOptimizations, arguments}` | the trace: `functions[].snapshots[].lines[]`, `values`, `params`, `diagnostics`, `stages`, timings |
+| `GET /api/classes?q=` | | classes of the application classpath (`--classpath`) matching `q` |
+| `GET /api/open?name=` | | that class's source (from `--sourcepath` or a `-sources.jar`) and kernel methods |
+| `POST /api/compile` | `{source, className, method, backend, targetOptions, mathOptimizations, arguments}` (blank `source` + `className`: compile the class file) | the trace: `functions[].snapshots[].lines[]`, `values`, `params`, `diagnostics`, `stages`, timings |
 
 ## Design choices
 

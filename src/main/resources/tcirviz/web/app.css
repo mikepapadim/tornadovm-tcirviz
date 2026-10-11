@@ -152,3 +152,25 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 .args label { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); }
 .args input { width: 72px; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font: 12px var(--mono); }
 .args .k { color: var(--mute); font-family: var(--sans); font-size: 11px; }
+
+button.ghost { border: 1px solid var(--line); background: var(--panel2); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+.open-dlg { width: min(720px, 90vw); }
+.open-dlg input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); font: 13px var(--mono); }
+.open-dlg ul { list-style: none; padding: 0; margin: 8px 0; max-height: 50vh; overflow: auto; font: 12px var(--mono); }
+.open-dlg li { padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+.open-dlg li:hover, .open-dlg li.on { background: var(--accent-soft); }
+.readonly-note { padding: 4px 10px; font-size: 12px; background: var(--chg); border-bottom: 1px solid var(--line); }
+
+/* control-flow graph */
+.code.cfg { position: relative; padding: 10px 0 40px; }
+.code.cfg .blks { margin: 0 70px 0 60px; display: flex; flex-direction: column; gap: 14px; width: max-content; min-width: calc(100% - 130px); position: relative; z-index: 1; }
+.code.cfg .blks > .ln { opacity: .6; }
+.code.cfg .blk { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 2px 0 4px; }
+.code.cfg .blk > .ln:first-child { background: var(--panel2); border-radius: 8px 8px 0 0; font-weight: 600; }
+.code.cfg .edges { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; overflow: visible; }
+.edges path { fill: none; stroke-width: 1.6; }
+.edges .fw { stroke: var(--blk); fill: none; } .edges marker .fw, .edges marker path.fw { fill: var(--blk); stroke: none; }
+.edges .f { stroke: var(--mute); stroke-dasharray: 4 3; } .edges marker path.f { fill: var(--mute); stroke: none; stroke-dasharray: none; }
+.edges .back { stroke: var(--accent); } .edges marker path.back { fill: var(--accent); stroke: none; }
+.edges text { font: 10px var(--mono); stroke: none; }
+.edges text.fw { fill: var(--blk); } .edges text.f { fill: var(--mute); } .edges text.back { fill: var(--accent); }
