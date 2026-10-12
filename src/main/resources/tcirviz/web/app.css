@@ -40,6 +40,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .seg button { border: 0; background: var(--panel2); padding: 4px 10px; cursor: pointer; }
 .seg button[aria-checked="true"] { background: var(--accent); color: #fff; }
+.seg button.na:not([aria-checked="true"]) { color: var(--mute); text-decoration: line-through; }
+.seg button.na[aria-checked="true"] { background: var(--del-b); }
 #backend-options { display: inline-flex; gap: 6px; }
 button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 7px; padding: 5px 12px; cursor: pointer; font-weight: 600; }
 button.primary kbd { background: transparent; border-color: rgba(255,255,255,.5); color: #fff; }
@@ -69,7 +71,7 @@ button.icon { width: 28px; height: 28px; border: 1px solid var(--line); backgrou
 
 /* work area */
 /* Below this the panes are too small to read: the page scrolls instead. */
-.work { min-width: 720px; min-height: 260px; display: grid; grid-template-columns: minmax(0, var(--c1, 30%)) 5px minmax(0, var(--c2, 1fr)) 5px minmax(0, var(--c3, 1fr)); }
+.work { position: relative; min-width: 720px; min-height: 260px; display: grid; grid-template-columns: minmax(0, var(--c1, 30%)) 5px minmax(0, var(--c2, 1fr)) 5px minmax(0, var(--c3, 1fr)); }
 .split { cursor: col-resize; background: var(--line); }
 .split:hover { background: var(--accent); }
 .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--panel); }
@@ -180,3 +182,12 @@ button.ghost { border: 1px solid var(--line); background: var(--panel2); border-
 
 /* a .java file dragged over the Java pane */
 .pane.java.drop { outline: 2px dashed var(--accent); outline-offset: -4px; background: var(--accent-soft); }
+
+/* TC-E4010 over the code panes: a TileContext kernel on OpenCL or Metal */
+.cuda-only { position: absolute; top: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: flex-start; justify-content: center; padding: 48px 24px; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(2px); }
+.cuda-only[hidden] { display: none; }
+.cuda-only .card { max-width: 520px; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--del-b); border-radius: 10px; padding: 18px 22px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.cuda-only h3 { margin: 0 0 8px; font-size: 17px; }
+.cuda-only p { margin: 0 0 10px; }
+.cuda-only .m { color: var(--mute); }
+.cuda-only button { font-size: 14px; padding: 7px 16px; }

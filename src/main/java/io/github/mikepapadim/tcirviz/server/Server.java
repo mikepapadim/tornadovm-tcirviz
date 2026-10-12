@@ -32,7 +32,7 @@ public final class Server {
 
     private static final String WEB = "/tcirviz/web/";
     private static final String EXAMPLES = "/tcirviz/examples/";
-    private static final List<String> EXAMPLE_NAMES = List.of("VectorAdd", "Saxpy", "MatrixMultiply", "Reduction", "BlurFilter", "Mandelbrot", "Branches", "HalfVectors", "TileMatmul");
+    private static final List<String> EXAMPLE_NAMES = List.of("VectorAdd", "Saxpy", "MatrixMultiply", "Reduction", "BlurFilter", "Mandelbrot", "Branches", "HalfVectors", "LocalMemoryMatmul", "Histogram", "Stencil2D", "TileMatmul");
 
     private final HttpServer http;
     private final String initialSource;
@@ -53,6 +53,31 @@ public final class Server {
 
     public void start() {
         http.start();
+        warmUp();
+    }
+
+    /**
+     * Compiles a few examples on every target in the background while the browser opens. The first
+     * compile in a fresh JVM loads and interprets javac, TC and the emitter (~0.5 s); paying that here
+     * makes the user's first compile as fast as the next ones.
+     */
+    private void warmUp() {
+        var thread = new Thread(() -> {
+            for (int round = 0; round < 2; round++) {
+                for (var name : List.of("MatrixMultiply", "Reduction")) {
+                    for (var backend : Backend.all().keySet()) {
+                        try {
+                            Pipeline.compile(new Pipeline.Request((String) example(name).get("source"), null, null, backend, new LinkedHashMap<>(), true, new LinkedHashMap<>(), null), app);
+                        } catch (IOException | RuntimeException e) {
+                            return; // only a head start: the user's own compile reports any problem
+                        }
+                    }
+                }
+            }
+        }, "tcirviz-warm-up");
+        thread.setDaemon(true);
+        thread.setPriority(Thread.MIN_PRIORITY);
+        thread.start();
     }
 
     public void stop() {

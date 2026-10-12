@@ -39,7 +39,7 @@ if [ -n "${CHROME:-}" ] && command -v node >/dev/null; then
 import json, sys
 r = json.load(open('build/ui-check.json'))
 problems = [k for k in ('chips', 'javaLineSteps', 'valueSteps', 'defHighlights', 'diffAdded') if not r.get(k)]
-if 'CUDA' not in r.get('tileStatus', '') or r.get('tileContextInput', True):
+if 'only on CUDA' not in r.get('tileNotice', '') or not r.get('tileMetalMarked') or 'CUDA' not in r.get('tileStatus', '') or r.get('tileContextInput', True):
     problems.append('tile')
 if not r.get('importStatus', '').startswith('scale'):
     problems.append('import')
