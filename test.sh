@@ -41,6 +41,8 @@ r = json.load(open('build/ui-check.json'))
 problems = [k for k in ('chips', 'javaLineSteps', 'valueSteps', 'defHighlights', 'diffAdded') if not r.get(k)]
 if 'CUDA' not in r.get('tileStatus', '') or r.get('tileContextInput', True):
     problems.append('tile')
+if not r.get('importStatus', '').startswith('scale'):
+    problems.append('import')
 if r['errors'] or problems or not r['openclHasKernel'] or 'Metal' not in r['metalStatus'] or 'TC-E' in r['metalStatus']:
     print('UI check FAILED:', r['errors'], problems); sys.exit(1)
 print('UI check ok: %d chips, journey %d steps, no console errors' % (r['chips'], r['valueSteps']))

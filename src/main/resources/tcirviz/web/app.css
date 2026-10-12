@@ -177,3 +177,6 @@ button.ghost { border: 1px solid var(--line); background: var(--panel2); border-
 .edges .back { stroke: var(--accent); } .edges marker path.back { fill: var(--accent); stroke: none; }
 .edges text { font: 10px var(--mono); stroke: none; }
 .edges text.fw { fill: var(--blk); } .edges text.f { fill: var(--mute); } .edges text.back { fill: var(--accent); }
+
+/* a .java file dragged over the Java pane */
+.pane.java.drop { outline: 2px dashed var(--accent); outline-offset: -4px; background: var(--accent-soft); }

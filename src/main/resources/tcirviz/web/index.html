@@ -12,6 +12,8 @@
   <div class="brand"><span class="logo">tc</span><b>irviz</b><span class="sub">TornadoVM TC compiler, stage by stage</span></div>
   <div class="controls">
     <label class="ctl">Example <select id="example"><option value="">—</option></select></label>
+    <button id="import" class="ghost" title="Load a .java file with TornadoVM kernels from your disk (or drop it on the Java pane)">Import .java…</button>
+    <input type="file" id="import-file" accept=".java,text/x-java,text/plain" hidden>
     <button id="open" class="ghost" hidden title="Open a kernel class of the application (--classpath)">Open class…</button>
     <label class="ctl">Kernel <select id="kernel"></select></label>
     <div class="seg" id="backends" role="radiogroup" aria-label="Target"></div>
@@ -75,6 +77,7 @@
     <li><b>Follow</b>: click a Java line, a bytecode, an IR value (<code>%x</code>) or a line of target code. Every pane highlights what belongs to it (<span class="hl-def sample">defines</span> <span class="hl-use sample">uses</span> <span class="hl-loc sample">same Java line</span>), and the <b>Journey</b> lists its path from Java to target code: where it is created, changed and removed, and by which pass.</li>
     <li><b>Diff</b>: a pane's <i>Δ</i> button shows what the stage changed against the previous one.</li>
     <li><b>Targets</b>: CUDA, OpenCL, Metal (experimental). New targets plug in as a Java service (<code>io.github.mikepapadim.tcirviz.backend.Backend</code>).</li>
+    <li><b>Your kernels</b>: <i>Import .java…</i> (or drop a <code>.java</code> file on the Java pane) loads a file with TornadoVM kernels: <code>@Parallel</code> loops, <code>KernelContext</code> or <code>TileContext</code>. Pick the kernel in <i>Kernel</i>.</li>
     <li>Keys: <kbd>Ctrl+Enter</kbd> compile · <kbd>Esc</kbd> clear the selection · <kbd>?</kbd> this help.</li>
   </ul>
   <form method="dialog"><button class="primary">Got it</button></form>

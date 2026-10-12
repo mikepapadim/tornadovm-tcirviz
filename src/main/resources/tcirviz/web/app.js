@@ -121,6 +121,20 @@ async function loadExample(name) {
   compile();
 }
 
+/** A .java file from the user's disk (picker or drop): it replaces the editor's text and is compiled. */
+async function importFile(file) {
+  if (!file) return;
+  if (!/\.java$/i.test(file.name)) { status(`${file.name} is not a .java file`, true); return; }
+  if (file.size > 2_000_000) { status(`${file.name} is too large (${(file.size / 1e6).toFixed(1)} MB)`, true); return; }
+  S.className = null;
+  $('#example').value = '';
+  S.method = null;
+  S.args = {};
+  S.sel = { ids: new Set(), line: null, bci: null };
+  setSource(await file.text());
+  compile();
+}
+
 // ------------------------------------------------------------------ Java editor
 
 function setSource(text) {
@@ -789,6 +803,16 @@ function wire() {
   $('#gutter').onclick = (e) => { const l = e.target.closest('[data-l]'); if (l) select({ line: +l.dataset.l }); };
   $('#compile').onclick = compile;
   $('#open').onclick = openDialog;
+  $('#import').onclick = () => $('#import-file').click();
+  $('#import-file').onchange = (e) => { importFile(e.target.files[0]); e.target.value = ''; };
+  // a file dropped on the Java pane is imported; dropped anywhere else it is ignored (the browser would open it instead of the app)
+  const javaPane = $('#pane-java');
+  const hasFile = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+  window.addEventListener('dragover', (e) => { if (hasFile(e)) { e.preventDefault(); e.dataTransfer.dropEffect = javaPane.contains(e.target) ? 'copy' : 'none'; } });
+  window.addEventListener('drop', (e) => { if (hasFile(e)) e.preventDefault(); });
+  javaPane.addEventListener('dragenter', (e) => { if (hasFile(e)) javaPane.classList.add('drop'); });
+  javaPane.addEventListener('dragleave', (e) => { if (!javaPane.contains(e.relatedTarget)) javaPane.classList.remove('drop'); });
+  javaPane.addEventListener('drop', (e) => { javaPane.classList.remove('drop'); if (hasFile(e)) importFile(e.dataTransfer.files[0]); });
   $('#example').onchange = (e) => e.target.value && loadExample(e.target.value);
   $('#kernel').onchange = (e) => { S.method = e.target.value.split(' ')[0]; S.args = {}; S.sel = { ids: new Set(), line: null, bci: null }; compile(); };
   $('#mathopt').onchange = compile;
