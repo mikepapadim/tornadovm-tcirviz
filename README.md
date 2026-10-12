@@ -16,7 +16,7 @@ It opens `http://127.0.0.1:7878/` in the browser. Compilation is headless, so no
 
 | | |
 |---|---|
-| **Java** | An editor with nine examples (one of them a TileContext kernel). Lines that reach the generated code are marked in the gutter. |
+| **Java** | An editor with twelve examples: @Parallel loops, KernelContext (thread ids, local memory, barriers, atomics) and TileContext. Lines that reach the generated code are marked in the gutter. |
 | **Bytecode** | What `javac` produced, with each bytecode index (bci) tied to its Java line. |
 | **TC IR** | Shown after every pipeline stage (frontend, inline, specialise, parallel loops, legality, ABI lowering, ...) and after **every optimisation pass** (canonicalize, cfg-simplify, dce, unroll, gvn, licm, math-peepholes), with the IR size and time of each. |
 | **Structured IR** | The kernel after SSA destruction and control-flow structuring: if/while/break, still target-neutral. |
@@ -142,6 +142,25 @@ first time it sees it. Every printed line then records the ids it defines and us
 and its bci, and that is all the UI needs to link panes.
 
 Details are in [docs/architecture.md](docs/architecture.md).
+
+## Run with JBang
+
+[JBang](https://www.jbang.dev) builds and runs tcirviz straight from the sources, with no
+`./build.sh` or `./install.sh`. `tcirviz.java` at the root of the repository is the JBang entry
+point. The TC compiler comes from your TornadoVM SDK, so pass its jars with `--cp`. From a clone
+of this repository:
+
+```bash
+source ~/tornadovm-compiler/setvars.sh       # TORNADOVM_HOME and JAVA_HOME (JDK 21+)
+TORNADO_CP="$TORNADOVM_HOME/share/java/tornado/*"
+
+jbang --cp "$TORNADO_CP" tcirviz.java                      # the UI
+jbang --cp "$TORNADO_CP" tcirviz.java MyKernels.java       # the UI, on your own kernels
+jbang --cp "$TORNADO_CP" tcirviz.java --port 9000 --no-open
+jbang --cp "$TORNADO_CP" tcirviz.java --json MyKernels.java --backend metal > trace.json
+```
+
+The first run compiles tcirviz into JBang's cache (about a second); later runs start straight away.
 
 ## License
 

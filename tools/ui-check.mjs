@@ -108,12 +108,18 @@ await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.t
 await waitFor(`document.querySelector('#status').textContent.includes('Metal') && !document.querySelector('#status').textContent.includes('TC-E')`);
 report.metalStatus = await evaluate(`document.querySelector('#status').textContent`);
 await shot('07-metal');
-// a TileContext kernel picked while on Metal: shown on CUDA, tc is a context (no size input)
+// a TileContext kernel picked while on Metal: a CUDA-only notice over the panes, Metal marked unavailable
 await evaluate(`(() => { const s = document.querySelector('#example'); s.value = 'TileMatmul'; s.dispatchEvent(new Event('change')); })()`);
-await waitFor(`document.querySelector('#status').textContent.includes('switched from Metal')`);
-report.tileStatus = await evaluate(`document.querySelector('#status').textContent`);
+await waitFor(`!document.querySelector('#cuda-only').hidden`);
+report.tileNotice = await evaluate(`document.querySelector('#cuda-only h3')?.textContent ?? ''`);
+report.tileMetalMarked = await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'Metal').classList.contains('na')`);
 report.tileContextInput = await evaluate(`!!document.querySelector('#args input[data-name="tc"]')`);
-await shot('08-tile');
+await shot('08-tile-notice');
+// "Show on CUDA" compiles it there and the notice goes away
+await evaluate(`document.querySelector('#cuda-only-go').click()`);
+await waitFor(`document.querySelector('#status').textContent.includes('CUDA') && document.querySelector('#cuda-only').hidden`);
+report.tileStatus = await evaluate(`document.querySelector('#status').textContent`);
+await shot('09-tile-cuda');
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'CUDA').click()`);
 await sleep(1500);
 report.errors = errors;
