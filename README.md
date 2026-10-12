@@ -16,7 +16,7 @@ It opens `http://127.0.0.1:7878/` in the browser. Compilation is headless, so no
 
 | | |
 |---|---|
-| **Java** | An editor with nine examples (one of them a TileContext kernel). Lines that reach the generated code are marked in the gutter. |
+| **Java** | An editor with twelve examples: @Parallel loops, KernelContext (thread ids, local memory, barriers, atomics) and TileContext. Lines that reach the generated code are marked in the gutter. |
 | **Bytecode** | What `javac` produced, with each bytecode index (bci) tied to its Java line. |
 | **TC IR** | Shown after every pipeline stage (frontend, inline, specialise, parallel loops, legality, ABI lowering, ...) and after **every optimisation pass** (canonicalize, cfg-simplify, dce, unroll, gvn, licm, math-peepholes), with the IR size and time of each. |
 | **Structured IR** | The kernel after SSA destruction and control-flow structuring: if/while/break, still target-neutral. |
