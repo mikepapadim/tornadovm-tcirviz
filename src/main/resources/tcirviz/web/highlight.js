@@ -10,7 +10,7 @@ export const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace
 const JAVA_KW = new Set('abstract assert boolean break byte case catch char class const continue default do double else enum extends final finally float for goto if implements import instanceof int interface long native new package private protected public return short static strictfp super switch synchronized this throw throws transient try var void volatile while record yield true false null'.split(' '));
 const C_KW = new Set('auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while bool half uchar ushort uint ulong char2 char3 char4 int2 int3 int4 int8 int16 float2 float3 float4 float8 float16 double2 double3 double4 double8 double16 half2 half3 half4 half8 half16 short2 short3 short4 long2 long4 true false'.split(' '));
 const C_SPECIAL = /^(__global__|__device__|__shared__|__constant__|__kernel|__global|__local|__constant|__private|kernel|device|threadgroup|threadIdx|blockIdx|blockDim|gridDim|get_global_id|get_local_id|get_group_id|get_local_size|get_global_size|get_num_groups|barrier|__syncthreads|CLK_LOCAL_MEM_FENCE|CLK_GLOBAL_MEM_FENCE|atomicAdd|atomic_add|atom_add)$/;
-const IR_TYPES = /^(i1|i8|i16|i32|i64|f16|bf16|f32|f64|void|ptr|vec|obj|tile)$/;
+const IR_TYPES = /^(i1|i8|i16|i32|i64|f16|bf16|f32|f64|void|ptr|vec|obj|tile|tileview)$/;
 
 function tokenize(text, rules) {
   let out = '';
@@ -67,7 +67,7 @@ export function ir(text) {
     [/(?<==\s*)[a-z_][\w.]*/y, span('op')],
     [/^(\s*)(br|cond_br|switch|ret|unreachable|array\.store|field\.store|store|tornado\.[\w.]+|math\.[\w.]+|call)\b/y, (s, m) => esc(m[1]) + span('op')(m[2])],
     [/\b[a-z]\w*(?=\s*=)/y, span('attr')],
-    [/\b(i1|i8|i16|i32|i64|f16|bf16|f32|f64|void|ptr|vec|obj|tile)\b/y, span('ty')],
+    [/\b(i1|i8|i16|i32|i64|f16|bf16|f32|f64|void|ptr|vec|obj|tile|tileview)\b/y, span('ty')],
     [/-?\b\d+(\.\d+)?([eE][+-]?\d+)?\b|\bnan\b|-?\binf\b/y, span('num')],
   ]);
 }
@@ -75,7 +75,7 @@ export function ir(text) {
 export function structured(text) {
   return tokenize(text, [
     [/\b(kernel|func|device|loop|block|if|else|break|continue|return|switch|case|default|unreachable)\b/y, span('kw')],
-    [/\b(i1|i8|i16|i32|i64|f16|bf16|f32|f64|void|ptr|vec|obj|tile|global|shared|private|constant)\b/y, span('ty')],
+    [/\b(i1|i8|i16|i32|i64|f16|bf16|f32|f64|void|ptr|vec|obj|tile|tileview|global|shared|private|constant)\b/y, span('ty')],
     [/\b(load|store|ptr\.offset|sext|zext|trunc|fptosi|sitofp|tornado\.[\w.]+|math\.[\w.]+)\b/y, span('op')],
     [/-?\b\d+(\.\d+)?\b/y, span('num')],
   ]);

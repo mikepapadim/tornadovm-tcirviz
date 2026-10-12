@@ -175,11 +175,22 @@ async function compile() {
   renderArgs(r);
   renderProblems(r);
   if (r.error) { status(r.error, true); return; }
+  // TileContext kernels are CUDA Tile C++ only (TC-E4010): show them on CUDA rather than as an error,
+  // for this compile only, so the stored target choice stays as the user left it.
+  if (!r.ok && S.backend !== 'cuda' && r.diagnostics?.some((d) => d.code === 'TC-E4010') && S.info.backends.some((b) => b.id === 'cuda')) {
+    S.tileFrom = S.info.backends.find((b) => b.id === S.backend)?.label ?? S.backend;
+    S.backend = 'cuda';
+    renderBackends();
+    compile();
+    return;
+  }
+  const note = S.tileFrom ? ` · TileContext kernels are CUDA only (switched from ${S.tileFrom})` : '';
+  S.tileFrom = null;
   S.fn = 0;
   renderFunctionPick();
   useFunction();
   const ms = (n) => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
-  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
+  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots${note}` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
 }
 
 function countIr() { return S.snaps.filter((s) => s.kind === 'ir').length; }
@@ -205,7 +216,7 @@ function renderArgs(r) {
   const params = r.params || [];
   if (!params.length) { box.innerHTML = ''; return; }
   box.innerHTML = '<span class="t">Arguments</span>' + params.map((p) => p.kind === 'context'
-    ? `<label title="${esc(p.hint)}">${esc(p.name)} <span class="k">KernelContext</span></label>`
+    ? `<label title="${esc(p.hint)}">${esc(p.name)} <span class="k">${esc(p.type)}</span></label>`
     : `<label title="${esc(p.type)}: ${esc(p.hint)}">${esc(p.name)} <span class="k">${esc(p.kind === 'array' ? p.type + ' length' : p.kind === 'object' ? p.type + ' size' : p.type)}</span><input data-name="${esc(p.name)}" value="${esc(p.value)}" placeholder="unknown"></label>`).join('');
   let t = 0;
   for (const input of box.querySelectorAll('input')) {

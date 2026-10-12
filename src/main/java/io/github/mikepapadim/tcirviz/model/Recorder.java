@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import uk.ac.manchester.tornado.tc.codegen.CEmitter;
 import uk.ac.manchester.tornado.tc.ir.Block;
@@ -35,6 +36,10 @@ public final class Recorder implements TcTrace {
 
     /** One printed line and what it refers to. */
     public record Line(String text, int inst, List<Integer> defs, List<Integer> uses, String file, int line, int bci, String vars) {
+        public Line {
+            text = brief(text);
+        }
+
         Map<String, Object> json() {
             var m = new LinkedHashMap<String, Object>();
             m.put("t", text);
@@ -69,6 +74,16 @@ public final class Recorder implements TcTrace {
 
     /** Facts about one value, independent of any stage. */
     public record ValueInfo(int id, String name, String kind, String type, String op, String file, int line, int bci) {
+        public ValueInfo {
+            type = brief(type);
+        }
+    }
+
+    private static final Pattern QUALIFIED_OBJ = Pattern.compile("obj<(?:[\\w$]+\\.)+([\\w$]+)>");
+
+    /** {@code obj<uk.ac.manchester.tornado.api.tile.TensorView>} as {@code obj<TensorView>}: the package only widens the IR. */
+    static String brief(String text) {
+        return text == null || !text.contains("obj<") ? text : QUALIFIED_OBJ.matcher(text).replaceAll("obj<$1>");
     }
 
     private final Map<Object, Integer> ids = new IdentityHashMap<>();

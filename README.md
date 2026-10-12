@@ -16,7 +16,7 @@ It opens `http://127.0.0.1:7878/` in the browser. Compilation is headless, so no
 
 | | |
 |---|---|
-| **Java** | An editor with eight examples. Lines that reach the generated code are marked in the gutter. |
+| **Java** | An editor with nine examples (one of them a TileContext kernel). Lines that reach the generated code are marked in the gutter. |
 | **Bytecode** | What `javac` produced, with each bytecode index (bci) tied to its Java line. |
 | **TC IR** | Shown after every pipeline stage (frontend, inline, specialise, parallel loops, legality, ABI lowering, ...) and after **every optimisation pass** (canonicalize, cfg-simplify, dce, unroll, gvn, licm, math-peepholes), with the IR size and time of each. |
 | **Structured IR** | The kernel after SSA destruction and control-flow structuring: if/while/break, still target-neutral. |
@@ -54,6 +54,12 @@ their device layouts come from the runtime's own `FieldLayout`, exactly as when 
 
 **Targets.** Switch between CUDA (with the compute capability, fp64 and fp16 as options), OpenCL and
 Metal. See [docs/architecture.md](docs/architecture.md) for adding a target.
+
+**TileContext kernels** compile to CUDA Tile C++, so they are shown on CUDA whichever target is
+selected. The *Tiles* stage gives every view and tile its static shape (`tileview<F16, 32, 32>`,
+`tile<F32, 32, 32>`), and hovering a `tile.*` op explains it. Their int arguments start unknown, so
+the views keep symbolic extents; set them to see sizes fold. Try the *TileMatmul* example, or the
+SDK's own (`tornado-examples/.../examples/tile/`).
 
 | | |
 |---|---|
