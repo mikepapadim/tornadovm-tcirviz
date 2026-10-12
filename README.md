@@ -36,6 +36,10 @@ Lines are matched by instruction identity, not by text.
 
 Combined with Δ, it shows what a pass did to the graph.
 
+**Import your own kernels.** *Import .java…* loads a `.java` file from your disk, or drop one on
+the Java pane. Any TornadoVM kernel works: `@Parallel` loops, `KernelContext` or `TileContext`. A
+file can also be given at start: `tornado --tcirviz MyKernels.java`.
+
 **Open a real application.** `tornado --tcirviz --params "--classpath app.jar --sourcepath src/main/java"`
 adds *Open class…*, which lists the application's classes and opens their kernel methods. Sources
 are also found in a `*-sources.jar` next to the jar. Without sources, the class file itself is

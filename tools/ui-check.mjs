@@ -122,6 +122,16 @@ report.tileStatus = await evaluate(`document.querySelector('#status').textConten
 await shot('09-tile-cuda');
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'CUDA').click()`);
 await sleep(1500);
+// Import .java: a file given to the picker replaces the editor's text and is compiled
+await evaluate(`(() => {
+  const dt = new DataTransfer();
+  dt.items.add(new File(['import uk.ac.manchester.tornado.api.annotations.Parallel;\\nimport uk.ac.manchester.tornado.api.types.arrays.FloatArray;\\npublic class Imported {\\n  public static void scale(FloatArray a) {\\n    for (@Parallel int i = 0; i < a.getSize(); i++) { a.set(i, 2f * a.get(i)); }\\n  }\\n}\\n'], 'Imported.java', { type: 'text/x-java' }));
+  const input = document.querySelector('#import-file');
+  input.files = dt.files;
+  input.dispatchEvent(new Event('change'));
+})()`);
+await waitFor(`document.querySelector('#status').textContent.startsWith('scale →')`);
+report.importStatus = await evaluate(`document.querySelector('#status').textContent`);
 report.errors = errors;
 writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));

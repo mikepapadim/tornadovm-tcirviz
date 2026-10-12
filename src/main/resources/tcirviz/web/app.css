@@ -180,6 +180,9 @@ button.ghost { border: 1px solid var(--line); background: var(--panel2); border-
 .edges text { font: 10px var(--mono); stroke: none; }
 .edges text.fw { fill: var(--blk); } .edges text.f { fill: var(--mute); } .edges text.back { fill: var(--accent); }
 
+/* a .java file dragged over the Java pane */
+.pane.java.drop { outline: 2px dashed var(--accent); outline-offset: -4px; background: var(--accent-soft); }
+
 /* TC-E4010 over the code panes: a TileContext kernel on OpenCL or Metal */
 .cuda-only { position: absolute; top: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: flex-start; justify-content: center; padding: 48px 24px; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(2px); }
 .cuda-only[hidden] { display: none; }
