@@ -165,3 +165,8 @@ jbang --cp "$TORNADO_CP" tcirviz.java --json MyKernels.java --backend metal > tr
 ```
 
 The first run compiles tcirviz into JBang's cache (about a second); later runs start straight away.
+
+## License
+
+Apache License 2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). Copyright (c) 2026, Michalis Papadimitriou.
+The TornadoVM SDK that tcirviz runs against is not included and keeps its own licenses.

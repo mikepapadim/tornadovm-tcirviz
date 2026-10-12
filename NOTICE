@@ -1,0 +1,6 @@
+tcirviz - an interactive visualiser for the TornadoVM TC compiler
+Copyright (c) 2026, Michalis Papadimitriou
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It runs against a TornadoVM SDK, which is not included and is distributed under its own licenses.

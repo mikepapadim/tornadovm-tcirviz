@@ -7,6 +7,7 @@ CP="${TCIRVIZ_CP:-${TORNADOVM_HOME:?set TORNADOVM_HOME to a TornadoVM SDK with T
 rm -rf build && mkdir -p build/classes
 javac --release 21 -proc:none -Xlint:all,-serial,-processing -Werror -g -cp "$CP" -d build/classes $(find src/main/java -name '*.java')
 cp -r src/main/resources/. build/classes/
+mkdir -p build/classes/META-INF && cp LICENSE NOTICE build/classes/META-INF/
 VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
 printf 'Main-Class: io.github.mikepapadim.tcirviz.TcIrViz\nImplementation-Title: tcirviz\nImplementation-Version: %s\n' "$VERSION" > build/MANIFEST.MF
 jar --create --file build/tcirviz.jar --manifest build/MANIFEST.MF -C build/classes .
