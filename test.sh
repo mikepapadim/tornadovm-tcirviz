@@ -7,7 +7,14 @@ cd "$(dirname "$0")"
 fail=0
 for f in src/main/resources/tcirviz/examples/*.java; do
   for b in cuda opencl metal; do
-    bin/tcirviz --json "$f" --backend "$b" | python3 tools/check-trace.py "$(basename "$f" .java)" "$b" || fail=1
+    case "$(basename "$f")/$b" in
+      # TileContext kernels are CUDA Tile C++: elsewhere the compiler must say so (TC-E4010).
+      Tile*/opencl | Tile*/metal)
+        bin/tcirviz --json "$f" --backend "$b" | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if any(x["code"] == "TC-E4010" for x in d["diagnostics"]) else 1)' \
+          && printf '%-16s %-7s ok (TC-E4010: CUDA only)\n' "$(basename "$f" .java)" "$b" \
+          || { printf '%-16s %-7s FAILED: no TC-E4010\n' "$(basename "$f" .java)" "$b"; fail=1; } ;;
+      *) bin/tcirviz --json "$f" --backend "$b" | python3 tools/check-trace.py "$(basename "$f" .java)" "$b" || fail=1 ;;
+    esac
   done
 done
 # The same compile through the SDK's argfile (java @tornado-argfile: the SDK's jars on the module path).
@@ -32,6 +39,8 @@ if [ -n "${CHROME:-}" ] && command -v node >/dev/null; then
 import json, sys
 r = json.load(open('build/ui-check.json'))
 problems = [k for k in ('chips', 'javaLineSteps', 'valueSteps', 'defHighlights', 'diffAdded') if not r.get(k)]
+if 'CUDA' not in r.get('tileStatus', '') or r.get('tileContextInput', True):
+    problems.append('tile')
 if r['errors'] or problems or not r['openclHasKernel'] or 'Metal' not in r['metalStatus'] or 'TC-E' in r['metalStatus']:
     print('UI check FAILED:', r['errors'], problems); sys.exit(1)
 print('UI check ok: %d chips, journey %d steps, no console errors' % (r['chips'], r['valueSteps']))

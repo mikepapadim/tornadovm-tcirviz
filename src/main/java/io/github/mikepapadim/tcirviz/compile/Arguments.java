@@ -40,6 +40,7 @@ public final class Arguments {
 
     private static final String NATIVE_ARRAY = "uk.ac.manchester.tornado.api.types.arrays.TornadoNativeArray";
     private static final String KERNEL_CONTEXT = "uk.ac.manchester.tornado.api.KernelContext";
+    private static final String TILE_CONTEXT = "uk.ac.manchester.tornado.api.tile.TileContext";
 
     private Arguments() {
     }
@@ -54,6 +55,9 @@ public final class Arguments {
 
     static List<Param> params(Method method, Map<String, String> chosen) {
         var list = new ArrayList<Param>();
+        // A tile kernel's ints are extents and block counts that must agree with the arrays' lengths;
+        // unknown by default, so the views stay symbolic instead of baking in sizes that contradict them.
+        boolean tiles = Arrays.stream(method.getParameterTypes()).anyMatch(t -> t.getName().equals(TILE_CONTEXT));
         for (var p : method.getParameters()) {
             var type = p.getType();
             var name = p.getName();
@@ -64,13 +68,18 @@ public final class Arguments {
                 kind = "context";
                 fallback = "";
                 hint = "thread ids and local memory: nothing to specialise";
+            } else if (type.getName().equals(TILE_CONTEXT)) {
+                // Host-only, like KernelContext: the runtime passes nothing for it to the device.
+                kind = "context";
+                fallback = "";
+                hint = "block ids; tile shapes come from the kernel's constants: nothing to specialise";
             } else if (isNativeArray(type) || type.isArray()) {
                 kind = "array";
                 fallback = "1024";
                 hint = "length";
             } else if (type.isPrimitive()) {
                 kind = "scalar";
-                fallback = type == int.class || type == long.class || type == short.class || type == byte.class ? "256" : "";
+                fallback = !tiles && (type == int.class || type == long.class || type == short.class || type == byte.class) ? "256" : "";
                 hint = "value (empty: not known when compiling)";
             } else {
                 kind = "object";

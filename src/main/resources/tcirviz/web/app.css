@@ -21,7 +21,9 @@
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; min-width: 0; background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); display: grid; grid-template-rows: auto auto 1fr auto; overflow: hidden; }
+/* One column as wide as the window, not as wide as the widest row (the rail), so the bar wraps instead of
+   being clipped. What still does not fit (the panes, below .work's minimum size) scrolls the page. */
+body { margin: 0; min-width: 0; background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); display: grid; grid-template-rows: auto auto 1fr auto; grid-template-columns: minmax(0, 1fr); overflow: auto; }
 button, select, input { font: inherit; color: inherit; }
 kbd { font: 11px var(--mono); padding: 0 4px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--panel2); }
 code { font-family: var(--mono); font-size: 12px; }
@@ -66,13 +68,14 @@ button.icon { width: 28px; height: 28px; border: 1px solid var(--line); backgrou
 .chip.gone::after { content: ""; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--del-b); }
 
 /* work area */
-.work { display: grid; grid-template-columns: minmax(0, var(--c1, 30%)) 5px minmax(0, var(--c2, 1fr)) 5px minmax(0, var(--c3, 1fr)); min-height: 0; min-width: 0; }
+/* Below this the panes are too small to read: the page scrolls instead. */
+.work { min-width: 720px; min-height: 260px; display: grid; grid-template-columns: minmax(0, var(--c1, 30%)) 5px minmax(0, var(--c2, 1fr)) 5px minmax(0, var(--c3, 1fr)); }
 .split { cursor: col-resize; background: var(--line); }
 .split:hover { background: var(--accent); }
-.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--panel); }
-.pane-head { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); background: var(--panel2); min-height: 34px; }
+.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--panel); }
+.pane-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); background: var(--panel2); min-height: 34px; }
 .pane-title { font-weight: 700; white-space: nowrap; }
-.pane-head select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; max-width: 46%; }
+.pane-head select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; max-width: 46%; min-width: 0; flex: 0 1 auto; }
 .pane-head .tools { margin-left: auto; display: flex; gap: 4px; }
 .pane-head .tools button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 1px 7px; cursor: pointer; }
 .pane-head .tools button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -120,7 +123,7 @@ button.icon { width: 28px; height: 28px; border: 1px solid var(--line); backgrou
 .problems { max-height: 30%; overflow: auto; }
 
 /* journey */
-.journey { min-width: 0; border-top: 1px solid var(--line); background: var(--panel); height: var(--jh, 210px); display: flex; flex-direction: column; min-height: 0; }
+.journey { min-width: 0; border-top: 1px solid var(--line); background: var(--panel); height: var(--jh, min(210px, 35vh)); display: flex; flex-direction: column; min-height: 0; }
 .journey.closed { height: 34px; }
 .j-head { display: flex; align-items: center; gap: 12px; padding: 5px 14px; border-bottom: 1px solid var(--line); background: var(--panel2); cursor: ns-resize; }
 .j-head .icon { margin-left: auto; width: 22px; height: 22px; }
@@ -147,7 +150,7 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 @media (max-width: 1100px) { .sub { display: none; } }
 
 /* arguments */
-.args { border-top: 1px solid var(--line); padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; background: var(--panel2); font-size: 12px; }
+.args { max-height: 40%; overflow: auto; border-top: 1px solid var(--line); padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; background: var(--panel2); font-size: 12px; }
 .args .t { font-weight: 700; color: var(--mute); }
 .args label { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); }
 .args input { width: 72px; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font: 12px var(--mono); }

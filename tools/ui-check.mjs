@@ -108,6 +108,12 @@ await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.t
 await waitFor(`document.querySelector('#status').textContent.includes('Metal') && !document.querySelector('#status').textContent.includes('TC-E')`);
 report.metalStatus = await evaluate(`document.querySelector('#status').textContent`);
 await shot('07-metal');
+// a TileContext kernel picked while on Metal: shown on CUDA, tc is a context (no size input)
+await evaluate(`(() => { const s = document.querySelector('#example'); s.value = 'TileMatmul'; s.dispatchEvent(new Event('change')); })()`);
+await waitFor(`document.querySelector('#status').textContent.includes('switched from Metal')`);
+report.tileStatus = await evaluate(`document.querySelector('#status').textContent`);
+report.tileContextInput = await evaluate(`!!document.querySelector('#args input[data-name="tc"]')`);
+await shot('08-tile');
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'CUDA').click()`);
 await sleep(1500);
 report.errors = errors;
