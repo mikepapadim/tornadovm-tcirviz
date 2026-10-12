@@ -1,5 +1,5 @@
 // tcirviz - an interactive visualiser for the TornadoVM TC compiler.
-// Copyright (c) 2026, Michalis Papadimitriou. SPDX-License-Identifier: GPL-2.0-only
+// Copyright (c) 2026, Michalis Papadimitriou. SPDX-License-Identifier: Apache-2.0
 //
 // Small single-line tokenisers: Java, bytecode, TC IR, structured IR and C-family target code.
 // Each returns HTML; IR value names become <span class="val" data-k="n"> where n is the token's

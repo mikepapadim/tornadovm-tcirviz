@@ -142,3 +142,8 @@ first time it sees it. Every printed line then records the ids it defines and us
 and its bci, and that is all the UI needs to link panes.
 
 Details are in [docs/architecture.md](docs/architecture.md).
+
+## License
+
+Apache License 2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). Copyright (c) 2026, Michalis Papadimitriou.
+The TornadoVM SDK that tcirviz runs against is not included and keeps its own licenses.

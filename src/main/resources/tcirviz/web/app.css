@@ -1,5 +1,5 @@
 /* tcirviz - an interactive visualiser for the TornadoVM TC compiler.
-   Copyright (c) 2026, Michalis Papadimitriou. SPDX-License-Identifier: GPL-2.0-only */
+   Copyright (c) 2026, Michalis Papadimitriou. SPDX-License-Identifier: Apache-2.0 */
 
 :root {
   --bg: #f7f7f5; --panel: #ffffff; --panel2: #f0f0ec; --line: #e2e1dc; --text: #1d1d1b; --mute: #6c6b66;

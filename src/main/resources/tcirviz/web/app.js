@@ -1,5 +1,5 @@
 // tcirviz - an interactive visualiser for the TornadoVM TC compiler.
-// Copyright (c) 2026, Michalis Papadimitriou. SPDX-License-Identifier: GPL-2.0-only
+// Copyright (c) 2026, Michalis Papadimitriou. SPDX-License-Identifier: Apache-2.0
 
 import { esc, forKind, java as hlJava } from './highlight.js';
 import { STAGES, PASSES, opcodeHelp } from './docs.js';

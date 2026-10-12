@@ -1,7 +1,7 @@
 /*
  * tcirviz - an interactive visualiser for the TornadoVM TC compiler.
  * Copyright (c) 2026, Michalis Papadimitriou.
- * SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-License-Identifier: Apache-2.0
  */
 package io.github.mikepapadim.tcirviz.compile;
 
