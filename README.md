@@ -142,3 +142,22 @@ first time it sees it. Every printed line then records the ids it defines and us
 and its bci, and that is all the UI needs to link panes.
 
 Details are in [docs/architecture.md](docs/architecture.md).
+
+## Run with JBang
+
+[JBang](https://www.jbang.dev) builds and runs tcirviz straight from the sources, with no
+`./build.sh` or `./install.sh`. `tcirviz.java` at the root of the repository is the JBang entry
+point. The TC compiler comes from your TornadoVM SDK, so pass its jars with `--cp`. From a clone
+of this repository:
+
+```bash
+source ~/tornadovm-compiler/setvars.sh       # TORNADOVM_HOME and JAVA_HOME (JDK 21+)
+TORNADO_CP="$TORNADOVM_HOME/share/java/tornado/*"
+
+jbang --cp "$TORNADO_CP" tcirviz.java                      # the UI
+jbang --cp "$TORNADO_CP" tcirviz.java MyKernels.java       # the UI, on your own kernels
+jbang --cp "$TORNADO_CP" tcirviz.java --port 9000 --no-open
+jbang --cp "$TORNADO_CP" tcirviz.java --json MyKernels.java --backend metal > trace.json
+```
+
+The first run compiles tcirviz into JBang's cache (about a second); later runs start straight away.
