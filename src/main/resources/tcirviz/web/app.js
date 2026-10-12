@@ -57,6 +57,10 @@ function renderBackends() {
     const btn = document.createElement('button');
     btn.textContent = b.label;
     btn.title = b.note;
+    if (S.tileKernel && b.id !== 'cuda') {
+      btn.classList.add('na');
+      btn.title = `${b.label} cannot run this kernel: TileContext kernels compile to CUDA Tile C++, so they run only on CUDA`;
+    }
     btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-checked', String(b.id === S.backend));
     btn.onclick = () => { S.backend = b.id; store.set('backend', b.id); renderBackends(); compile(); };
@@ -174,23 +178,32 @@ async function compile() {
   renderKernels(r);
   renderArgs(r);
   renderProblems(r);
-  if (r.error) { status(r.error, true); return; }
-  // TileContext kernels are CUDA Tile C++ only (TC-E4010): show them on CUDA rather than as an error,
-  // for this compile only, so the stored target choice stays as the user left it.
-  if (!r.ok && S.backend !== 'cuda' && r.diagnostics?.some((d) => d.code === 'TC-E4010') && S.info.backends.some((b) => b.id === 'cuda')) {
-    S.tileFrom = S.info.backends.find((b) => b.id === S.backend)?.label ?? S.backend;
-    S.backend = 'cuda';
-    renderBackends();
-    compile();
-    return;
-  }
-  const note = S.tileFrom ? ` · TileContext kernels are CUDA only (switched from ${S.tileFrom})` : '';
-  S.tileFrom = null;
+  if (r.error) { renderCudaOnly(null); status(r.error, true); return; }
+  S.tileKernel = (r.params || []).some((p) => p.type === 'TileContext');
+  renderBackends();
+  renderCudaOnly(!r.ok && r.diagnostics?.some((d) => d.code === 'TC-E4010') ? r : null);
   S.fn = 0;
   renderFunctionPick();
   useFunction();
   const ms = (n) => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
-  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots${note}` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
+  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
+}
+
+/** TC-E4010 in words, over the code panes: a TileContext kernel asked for OpenCL or Metal. */
+function renderCudaOnly(r) {
+  const box = $('#cuda-only');
+  box.hidden = !r;
+  if (!r) return;
+  const target = S.info.backends.find((b) => b.id === S.backend)?.label ?? S.backend;
+  box.style.left = $('#pane-a').offsetLeft + 'px';
+  box.innerHTML = `<div class="card">
+    <h3>TileContext kernels run only on CUDA</h3>
+    <p><code>${esc(r.method)}</code> takes a <code>TileContext</code>, so TC compiles it to CUDA Tile C++ (<code>cuda_tile.h</code>).
+    ${esc(target)} has no equivalent, and TC stops at the legality stage with <b>TC-E4010</b>.</p>
+    <p class="m">Kernels written with <code>@Parallel</code> loops or <code>KernelContext</code> run on every target.</p>
+    <button class="primary" id="cuda-only-go">Show on CUDA</button>
+  </div>`;
+  $('#cuda-only-go').onclick = () => { S.backend = 'cuda'; store.set('backend', 'cuda'); renderBackends(); compile(); };
 }
 
 function countIr() { return S.snaps.filter((s) => s.kind === 'ir').length; }
