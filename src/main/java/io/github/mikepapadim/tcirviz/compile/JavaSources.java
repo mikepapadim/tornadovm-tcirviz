@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -130,7 +131,7 @@ public final class JavaSources {
         }
         ClassLoader loader;
         try {
-            loader = new URLClassLoader(new java.net.URL[] { out.toUri().toURL() }, app.loader());
+            loader = new Fresh(out.toUri().toURL(), app.loader());
         } catch (java.net.MalformedURLException e) {
             throw new IllegalStateException(e);
         }
@@ -183,5 +184,40 @@ public final class JavaSources {
             sb.append(i == 0 ? "" : ", ").append(params[i].getType().getSimpleName()).append(' ').append(params[i].getName());
         }
         return sb.append(')').toString();
+    }
+
+    /**
+     * Loads what was just compiled before asking its parent. The SDK's jars are on the classpath, and
+     * tornado-examples holds classes of the same names as the SDK's example sources: parent-first, the
+     * SDK's prebuilt copy would shadow the source being edited (edits ignored, parameter names lost).
+     */
+    private static final class Fresh extends URLClassLoader {
+
+        Fresh(URL classes, ClassLoader parent) {
+            super(new URL[] { classes }, parent);
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            synchronized (getClassLoadingLock(name)) {
+                var c = findLoadedClass(name);
+                if (c == null && findResource(name.replace('.', '/') + ".class") != null) {
+                    c = findClass(name);
+                }
+                if (c == null) {
+                    return super.loadClass(name, resolve);
+                }
+                if (resolve) {
+                    resolveClass(c);
+                }
+                return c;
+            }
+        }
+
+        @Override
+        public URL getResource(String name) {
+            var own = findResource(name);
+            return own != null ? own : super.getResource(name);
+        }
     }
 }
