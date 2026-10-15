@@ -274,6 +274,7 @@ public final class Recorder implements TcTrace {
         switch (stmt) {
             case S.Assign(var target, var value, var loc) -> lines.add(stmtLine(pad + target.name() + " = " + SPrinter.expr(value) + ";", stmt, loc, printer, target.name()));
             case S.Effect(var op, var loc) -> lines.add(stmtLine(pad + SPrinter.expr(op) + ";", stmt, loc, printer, ""));
+            case S.ZeroFill(var alloca, var loc) -> lines.add(stmtLine(pad + "zero " + alloca.name() + ";", stmt, loc, printer, alloca.name()));
             case S.If(var c, var t, var e) -> {
                 lines.add(stmtLine(pad + "if (" + SPrinter.expr(c) + ") {", stmt, Loc.UNKNOWN, printer, ""));
                 statements(t, depth + 1, lines, printer);

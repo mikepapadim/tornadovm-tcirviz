@@ -95,7 +95,7 @@ public interface Backend {
             var base = TargetCaps.CUDA_SM89;
             int cc = Integer.parseInt(option(o, OPTIONS, "computeCapability"));
             return new TargetCaps(TargetCaps.Dialect.CUDA, cc, option(o, OPTIONS, "fp64").equals("yes"), option(o, OPTIONS, "fp16").equals("yes"), base.arrayHeaderBytes(),
-                    base.maxWorkGroupSize(), base.localMemoryBytes(), base.warpSize(), cc >= 80);
+                    base.maxWorkGroupSize(), base.localMemoryBytes(), base.warpSize(), cc >= 80, 0);
         }
 
         @Override
@@ -132,7 +132,7 @@ public interface Backend {
         public TargetCaps caps(Map<String, String> o) {
             var base = TargetCaps.OPENCL_GENERIC;
             return new TargetCaps(TargetCaps.Dialect.OPENCL, 0, option(o, OPTIONS, "fp64").equals("yes"), option(o, OPTIONS, "fp16").equals("yes"), base.arrayHeaderBytes(),
-                    base.maxWorkGroupSize(), base.localMemoryBytes(), base.warpSize(), false);
+                    base.maxWorkGroupSize(), base.localMemoryBytes(), base.warpSize(), false, 0);
         }
 
         @Override
@@ -161,7 +161,7 @@ public interface Backend {
         @Override
         public TargetCaps caps(Map<String, String> o) {
             var base = TargetCaps.OPENCL_GENERIC;
-            return new TargetCaps(TargetCaps.Dialect.METAL, 0, false, true, base.arrayHeaderBytes(), base.maxWorkGroupSize(), base.localMemoryBytes(), 32, false);
+            return new TargetCaps(TargetCaps.Dialect.METAL, 0, false, true, base.arrayHeaderBytes(), base.maxWorkGroupSize(), base.localMemoryBytes(), 32, false, 0);
         }
 
         @Override
