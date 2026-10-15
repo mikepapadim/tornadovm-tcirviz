@@ -17,6 +17,12 @@ for f in src/main/resources/tcirviz/examples/*.java; do
     esac
   done
 done
+# A private array allocated in a loop is zeroed where its `new` runs (structured IR `zero <name>;`).
+for b in cuda opencl metal; do
+  n=$(bin/tcirviz --json src/main/resources/tcirviz/examples/PrivateArrays.java --backend "$b" | grep -oE 'zero (best|counts);' | sort -u | wc -l)
+  [ "$n" -eq 2 ] && printf '%-16s %-7s ok (zero best, zero counts)\n' PrivateArrays "$b" \
+    || { printf '%-16s %-7s FAILED: expected zero best/counts in the structured IR\n' PrivateArrays "$b"; fail=1; }
+done
 # The same compile through the SDK's argfile (java @tornado-argfile: the SDK's jars on the module path).
 if [ -f "$TORNADOVM_HOME/tornado-argfile" ]; then
   "${JAVA_HOME:+$JAVA_HOME/bin/}java" @"$TORNADOVM_HOME/tornado-argfile" -cp build/tcirviz.jar io.github.mikepapadim.tcirviz.TcIrViz \

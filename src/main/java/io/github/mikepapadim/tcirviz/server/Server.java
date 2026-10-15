@@ -32,7 +32,7 @@ public final class Server {
 
     private static final String WEB = "/tcirviz/web/";
     private static final String EXAMPLES = "/tcirviz/examples/";
-    private static final List<String> EXAMPLE_NAMES = List.of("VectorAdd", "Saxpy", "MatrixMultiply", "Reduction", "BlurFilter", "Mandelbrot", "Branches", "HalfVectors", "LocalMemoryMatmul", "Histogram", "Stencil2D", "TileMatmul");
+    private static final List<String> EXAMPLE_NAMES = List.of("VectorAdd", "Saxpy", "MatrixMultiply", "Reduction", "BlurFilter", "Mandelbrot", "Branches", "HalfVectors", "LocalMemoryMatmul", "Histogram", "Stencil2D", "PrivateArrays", "TileMatmul");
 
     private final HttpServer http;
     private final String initialSource;
