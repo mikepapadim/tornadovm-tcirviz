@@ -21,6 +21,7 @@ It opens `http://127.0.0.1:7878/` in the browser. Compilation is headless, so no
 | **TC IR** | Shown after every pipeline stage (frontend, inline, specialise, parallel loops, legality, ABI lowering, ...) and after **every optimisation pass** (canonicalize, cfg-simplify, dce, unroll, gvn, licm, math-peepholes), with the IR size and time of each. |
 | **Structured IR** | The kernel after SSA destruction and control-flow structuring: if/while/break, still target-neutral. |
 | **Target code** | CUDA C++, OpenCL C or Metal Shading Language, exactly as the TornadoVM runtime would install it. |
+| **PTX and SASS** | On CUDA: the target code compiled by NVRTC as the runtime compiles it, then disassembled, with registers, spills and shared memory per kernel. Each instruction is tied to its Java line. |
 
 **Follow anything.** Click a Java line, a bytecode, an IR value (`%x`) or a line of target code:
 - Every pane highlights what belongs to it: the lines that define it, the lines that use it, and the lines from the same Java line.
@@ -76,6 +77,14 @@ child into the same CUDA module as a kernel of its own, listed by the function s
 CUDA source shows the `child<<<grid, block>>>` launch and its check. Try *DynamicParallelism*: one
 parent thread per row of a ragged matrix launches a grid sized to that row. OpenCL and Metal refuse
 it (TC-E4016). The kernel picker lists public methods first, so it opens on the entry point.
+
+**PTX and SASS.** On CUDA, two more steps follow the target source: the PTX NVRTC makes of it
+(through the SDK's own binding and the runtime's default options; `-rdc=true` for kernels that
+launch kernels) and the SASS of an `sm_XX` cubin (`nvdisasm`), headed by `cuobjdump -res-usage`. The
+status line gives registers, spills and shared memory. PTX `.loc` and SASS line info tie each
+instruction to its CUDA line, and so to its Java line: following a Java line or an IR value
+highlights its machine code. PTX needs NVRTC; SASS also needs the CUDA toolkit; neither needs a GPU.
+Without them the step says what is missing. TileContext kernels need a CUDA 13 toolkit (`cuda_tile.h`).
 
 **Array sizes.** The status line says whether the kernel reads an array length. One that does not
 (it takes its sizes as arguments) compiles once for every array size when its plan uses

@@ -201,7 +201,9 @@ async function compile() {
   useFunction();
   const ms = (n) => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
   const shapes = r.readsLengths === false ? ' · one kernel for every array size' : r.readsLengths ? ' · specialised on array lengths' : '';
-  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots${shapes}` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
+  const res = r.device?.resources;
+  const device = res && res.reg !== undefined ? ` · ${res.reg} registers${res.local ? `, ${res.local} B spilled` : ''}${res.shared ? `, ${res.shared} B shared` : ''}` : '';
+  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots${shapes}${device}` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
 }
 
 /**

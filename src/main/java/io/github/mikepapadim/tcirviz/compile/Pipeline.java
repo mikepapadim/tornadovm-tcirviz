@@ -12,8 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import io.github.mikepapadim.tcirviz.backend.Backend;
+import io.github.mikepapadim.tcirviz.device.Nvrtc;
 import io.github.mikepapadim.tcirviz.model.Recorder;
 import uk.ac.manchester.tornado.tc.frontend.Frontend;
 import uk.ac.manchester.tornado.tc.runtime.TcCompiler;
@@ -116,10 +118,52 @@ public final class Pipeline {
             diagnostics.add(m);
         }
         out.put("diagnostics", diagnostics);
+        if (c.succeeded() && backend.id().equals("cuda")) {
+            out.put("device", device(recorder, c, caps.computeCapability()));
+        }
         out.put("stages", c.stages().stream().map(s -> Map.of("name", s.name(), "nanos", s.nanos(), "size", s.size())).toList());
         out.put("tcNanos", tcNanos);
         out.put("totalNanos", System.nanoTime() - start);
         out.putAll(recorder.json());
+        return out;
+    }
+
+    /** NVRTC's file name for the kernel source: device-code line markers name it. */
+    private static final String KERNEL_FILE = "tornado_kernel.cu";
+    /** PTX: {@code .file 1 "tornado_kernel.cu"} once, then {@code .loc 1 23 5} before the code of CUDA line 23. */
+    private static final Pattern PTX_LOC = Pattern.compile("^\\s*\\.loc\\s+(\\d+)\\s+(\\d+)");
+    /** SASS from nvdisasm -g: {@code //## File "tornado_kernel.cu", line 23}. */
+    private static final Pattern SASS_LOC = Pattern.compile("//## File \"([^\"]+)\", line (\\d+)");
+    /** cuobjdump -res-usage: {@code REG:24 STACK:0 SHARED:0 LOCAL:0 ...} after each function's name. */
+    private static final Pattern RESOURCE = Pattern.compile("(REG|STACK|SHARED|LOCAL):(\\d+)");
+
+    /**
+     * PTX and SASS of the kernel, as two more steps after the CUDA source, and its resource usage.
+     * They need NVRTC (and for SASS the CUDA toolkit); without them the step says why.
+     */
+    private static Map<String, Object> device(Recorder recorder, TcCompiler.Compilation c, int computeCapability) {
+        var result = Nvrtc.compile(c.source(), computeCapability);
+        var out = new LinkedHashMap<String, Object>();
+        out.put("options", result.options());
+        out.put("note", result.note());
+        if (!result.ptx().isEmpty()) {
+            // The PTX names the kernel source by number: .file 1 "tornado_kernel.cu".
+            var fileNumber = Pattern.compile("\\.file\\s+(\\d+)\\s+\"" + Pattern.quote(KERNEL_FILE) + "\"").matcher(result.ptx());
+            var number = fileNumber.find() ? fileNumber.group(1) : "1";
+            recorder.device(c.function(), "ptx", "ptx", result.ptx(), PTX_LOC, number);
+        } else {
+            recorder.device(c.function(), "ptx", "ptx", "// " + result.note().replace("\n", "\n// "), PTX_LOC, "");
+        }
+        if (!result.sass().isEmpty()) {
+            var header = result.resources().isBlank() ? "" : "// cuobjdump -res-usage:\n// " + result.resources().strip().replace("\n", "\n// ") + "\n";
+            recorder.device(c.function(), "sass", "sass", header + result.sass(), SASS_LOC, KERNEL_FILE);
+        }
+        var usage = new LinkedHashMap<String, Integer>();
+        var m = RESOURCE.matcher(result.resources());
+        while (m.find()) {
+            usage.merge(m.group(1).toLowerCase(java.util.Locale.ROOT), Integer.parseInt(m.group(2)), Math::max);
+        }
+        out.put("resources", usage);
         return out;
     }
 

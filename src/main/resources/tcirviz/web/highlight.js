@@ -92,6 +92,33 @@ export function target(text) {
   ]);
 }
 
+/** PTX: directives, opcodes with their type suffixes, registers (%r1, %rd2, %f3, %p1). */
+export function ptx(text) {
+  return tokenize(text, [
+    [/\/\/.*$/y, span('cm')],
+    [/^\s*\.(loc|file)\b.*$/y, span('cm')],
+    [/\.[a-z_][\w]*/y, span('kw')],
+    [/^(\s*)(@!?%p\d+\s+)?([a-z][\w]*)/y, (s, m) => esc(m[1]) + (m[2] ? span('ty')(m[2]) : '') + span('op')(m[3])],
+    [/%[a-z]+\d*(\.[xyz])?/y, span('ty')],
+    [/\b0[xXfFdD][\da-fA-F]+\b|-?\b\d+(\.\d+)?\b/y, span('num')],
+    [/[A-Za-z_$][\w$]*/y, (w) => esc(w)],
+  ]);
+}
+
+/** SASS from nvdisasm: offsets, opcodes, registers (R0, UR4, P0, RZ), constant-bank operands. */
+export function sass(text) {
+  return tokenize(text, [
+    [/\/\/.*$/y, span('cm')],
+    [/\/\*[\da-f]+\*\//y, span('bci')],
+    [/^\s*\.[\w]+.*$/y, span('cm')],
+    [/@!?U?P[T\d]+/y, span('ty')],
+    [/(?<=(\*\/|^)\s+(@!?U?P[T\d]+\s+)?)[A-Z][A-Z0-9_]*(\.[A-Z0-9_]+)*/y, span('op')],
+    [/\b(U?R\d+|U?RZ|U?P\d|PT|SR_[A-Z_.]+)\b/y, span('ty')],
+    [/c\[0x[\da-f]+\]\[0x[\da-f]+\]/y, span('attr')],
+    [/-?\b0x[\da-fA-F]+\b|-?\b\d+(\.\d+)?\b/y, span('num')],
+  ]);
+}
+
 export function forKind(kind) {
-  return { java, bytecode, ir, structured, source: target }[kind] || ((t) => esc(t));
+  return { java, bytecode, ir, structured, source: target, ptx, sass }[kind] || ((t) => esc(t));
 }

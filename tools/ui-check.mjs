@@ -142,6 +142,14 @@ await evaluate(`(() => {
 })()`);
 await waitFor(`document.querySelector('#status').textContent.startsWith('scale →')`);
 report.importStatus = await evaluate(`document.querySelector('#status').textContent`);
+// PTX and SASS, when this host has NVRTC: the PTX step shows device code; the status counts registers
+report.ptxChip = await evaluate(`!![...document.querySelectorAll('#rail .chip .n')].find(n => n.textContent === 'PTX')`);
+if (report.ptxChip) {
+  await evaluate(`[...document.querySelectorAll('#rail .chip')].find(c => c.querySelector('.n')?.textContent === 'PTX').click()`);
+  await sleep(300);
+  report.ptxCode = await evaluate(`[...document.querySelectorAll('.code .ln')].some(l => l.textContent.includes('.entry') || l.textContent.includes('ld.global'))`);
+  await shot('12-ptx');
+}
 report.errors = errors;
 writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));

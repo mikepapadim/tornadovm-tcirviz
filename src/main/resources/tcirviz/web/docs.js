@@ -69,6 +69,14 @@ export const STAGES = {
     title: 'Target source',
     what: 'The structured kernel printed in the target language (CUDA C++, OpenCL C, Metal). Comments give the Java line each statement came from.',
   },
+  ptx: {
+    title: 'PTX',
+    what: 'The CUDA source compiled by NVRTC, as the TornadoVM CUDA backend compiles it (its default options, -rdc=true for kernels that launch kernels), for compute_XX: NVIDIA\'s virtual instruction set. Each instruction is tied to the Java line of the CUDA line it came from (-lineinfo).',
+  },
+  sass: {
+    title: 'SASS',
+    what: 'The machine code the GPU runs, for sm_XX, disassembled by nvdisasm, with register, stack, shared- and local-memory use from cuobjdump. Needs the CUDA toolkit; no GPU.',
+  },
 };
 
 export const PASSES = {

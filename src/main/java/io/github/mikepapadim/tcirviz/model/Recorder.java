@@ -403,6 +403,34 @@ public final class Recorder implements TcTrace {
         functions.computeIfAbsent(function.name(), k -> new ArrayList<>()).add(new Snapshot("emit", null, "source", true, 0, lines.size(), text, lines));
     }
 
+    /**
+     * Device code built from the function's target source (PTX, SASS): one more step after "emit".
+     * {@code marker} finds the lines that say which line of the CUDA source the following code came
+     * from (group 1: the source file, group 2: the line); each line of device code then carries that
+     * CUDA line's Java location and IR values, so following a Java line or a value reaches it too.
+     */
+    public void device(String function, String stage, String kind, String text, java.util.regex.Pattern marker, String sourceFile) {
+        var snaps = functions.get(function);
+        if (snaps == null) {
+            return;
+        }
+        var source = snaps.stream().filter(sn -> sn.kind().equals("source")).reduce((first, second) -> second).map(Snapshot::lines).orElse(List.of());
+        var lines = new ArrayList<Line>();
+        Line from = null;
+        for (var row : text.split("\n", -1)) {
+            var m = marker.matcher(row);
+            if (m.find()) {
+                int cudaLine = Integer.parseInt(m.group(2));
+                from = (m.group(1).equals(sourceFile) || m.group(1).endsWith("/" + sourceFile)) && cudaLine >= 1 && cudaLine <= source.size() ? source.get(cudaLine - 1) : null;
+                lines.add(new Line(row, -1, List.of(), List.of(), null, -1, -1, null));
+                continue;
+            }
+            lines.add(from == null || row.isBlank() ? new Line(row, -1, List.of(), List.of(), null, -1, -1, null)
+                    : new Line(row, -1, List.of(), from.uses(), from.file(), from.line(), from.bci(), from.vars()));
+        }
+        snaps.add(new Snapshot(stage, null, kind, true, 0, lines.size(), text, lines));
+    }
+
     /** The recorded compilation as JSON-ready maps. */
     public Map<String, Object> json() {
         var fs = new ArrayList<Object>();

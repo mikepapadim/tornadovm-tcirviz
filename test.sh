@@ -33,7 +33,7 @@ done
 # A tile that may cross the edge of its tensor is loaded/stored masked unless every extent is a constant
 # the tile shape divides (--arg fixes rows and columns as the UI's Arguments do).
 masked() { bin/tcirviz --json src/main/resources/tcirviz/examples/TileRowSums.java --backend cuda "$@" \
-  | python3 -c 'import json, sys; d = json.load(sys.stdin); print(json.dumps(d["functions"][0]["snapshots"][-1]).count("_masked"))'; }
+  | python3 -c 'import json, sys; d = json.load(sys.stdin); print(json.dumps([x for x in d["functions"][0]["snapshots"] if x["kind"] == "source"][-1]).count("_masked"))'; }
 for c in ":2" "rows=64 columns=100:1" "rows=64 columns=256:0"; do
   args=${c%:*}; want=${c##*:}; flags=""; for a in $args; do flags="$flags --arg $a"; done
   got=$(masked $flags)
@@ -51,7 +51,7 @@ bin/tcirviz --json src/main/resources/tcirviz/examples/DynamicParallelism.java -
 import json, sys
 d = json.load(sys.stdin)
 names = [f["name"] for f in d["functions"]]
-parent = json.dumps(d["functions"][0]["snapshots"][-1])
+parent = json.dumps([x for x in d["functions"][0]["snapshots"] if x["kind"] == "source"][-1])
 ok = d["ok"] and d["method"] == "scaleRows" and "DynamicParallelism.scaleRow_dp" in names and "scaleRow_dp<<<_dp_grid, _dp_block>>>" in parent and "tc_device_launch_check" in parent
 print("%-16s %-7s %s" % ("DynamicParallelism", "cuda", "ok (scaleRows launches scaleRow_dp<<<>>>)" if ok else "FAILED: " + str(names)))
 sys.exit(0 if ok else 1)' || fail=1
@@ -63,10 +63,43 @@ fp8 | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if not 
 fp8 --target computeCapability=90 | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
-cuda = json.dumps(d["functions"][0]["snapshots"][-1]) if d["ok"] else ""
+cuda = json.dumps([x for x in d["functions"][0]["snapshots"] if x["kind"] == "source"][-1]) if d["ok"] else ""
 ok = "ct::element_cast<__nv_fp8_e4m3>(ct::full<" in cuda and "ct::element_cast<float>(x) > (float) 0.3" in cuda
 print("%-16s %-7s %s" % ("TileFP8", "cuda", "ok (sm_90: FP8 through element_cast, scalar factor too)" if ok else "FAILED on sm_90: " + str([x["code"] for x in d.get("diagnostics", [])])))
 sys.exit(0 if ok else 1)' || fail=1
+# PTX and SASS (when this host has NVRTC and the CUDA toolkit): device code tied to Java lines, and the
+# resource usage cuobjdump reports (LocalMemoryMatmul's two 16 x 16 float tiles: 2048 bytes shared).
+python3 - <<'PY' || fail=1
+import json, subprocess, sys
+def trace(name, *extra):
+    out = subprocess.run(['bin/tcirviz', '--json', f'src/main/resources/tcirviz/examples/{name}.java', '--backend', 'cuda', *extra], capture_output=True, text=True).stdout
+    return json.loads(out)
+d = trace('Saxpy')
+note = d.get('device', {}).get('note', '')
+if 'not available' in note or 'no CUDA backend' in note:
+    print('Device code      cuda    skipped (%s)' % note.splitlines()[0]); sys.exit(0)
+problems = []
+for name, extra in [('Saxpy', []), ('LocalMemoryMatmul', []), ('DynamicParallelism', ['--method', 'scaleRows'])]:
+    t = trace(name, *extra)
+    snaps = {s['kind']: s for s in t['functions'][0]['snapshots'] if s['kind'] in ('ptx', 'sass')}
+    for kind in ('ptx', 'sass'):
+        if kind not in snaps or not any(l.get('l', -1) > 0 for l in snaps[kind]['lines']):
+            problems.append(f'{name}: no {kind} tied to Java lines')
+    if not t['device'].get('resources', {}).get('reg'):
+        problems.append(f'{name}: no register count')
+    if name == 'LocalMemoryMatmul' and t['device']['resources'].get('shared') != 2048:
+        problems.append(f"LocalMemoryMatmul: {t['device']['resources'].get('shared')} B shared, expected 2048")
+    if name == 'DynamicParallelism' and '-rdc=true' not in t['device']['options']:
+        problems.append('DynamicParallelism: compiled without -rdc=true')
+# A tile kernel whose header this toolkit lacks still compiles in TC; the PTX step says why there is no PTX.
+t = trace('TileMatmul')
+ptx = [s for s in t['functions'][0]['snapshots'] if s['kind'] == 'ptx']
+if t['ok'] and (not ptx or (not t['device']['note'] and not t['device'].get('resources'))):
+    problems.append('TileMatmul: neither device code nor a note saying why not')
+if problems:
+    print('Device code FAILED:', problems); sys.exit(1)
+print('Device code      cuda    ok (PTX + SASS tied to Java, registers, 2048 B shared, -rdc for launches)')
+PY
 # Every stage and pass the examples' traces show has an explanation in docs.js (a new TC stage or pass
 # would otherwise appear as a bare name).
 python3 - <<'PY' || fail=1
@@ -120,6 +153,8 @@ if 'only on CUDA' not in r.get('tileNotice', '') or not r.get('tileMetalMarked')
     problems.append('tile')
 if 'compute capability 9.0' not in r.get('fp8Notice', '') or not r.get('fp8Status', '').startswith('scaleAndCompare') or not r.get('fp8Casts'):
     problems.append('fp8')
+if r.get('ptxChip') and (not r.get('ptxCode') or 'registers' not in r.get('status', '')):
+    problems.append('ptx')
 if not r.get('importStatus', '').startswith('scale'):
     problems.append('import')
 if 'array size' not in r.get('status', '') and 'array lengths' not in r.get('status', ''):
