@@ -810,7 +810,7 @@ function onCodeHover(e) {
   }
   const op = e.target.closest('.op');
   if (op) {
-    const h = opcodeHelp('= ' + op.textContent);
+    const h = opcodeHelp('= ' + op.textContent, S.info.intrinsics);
     if (h) tip(e, `<b>${esc(h.op)}</b><br>${esc(h.help)}`);
   }
 }

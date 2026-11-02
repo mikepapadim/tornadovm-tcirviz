@@ -53,6 +53,14 @@ export const STAGES = {
     title: 'Optimise (post-ABI)',
     what: 'The same passes again on the pointer-level IR: address arithmetic now visible to value numbering and code motion.',
   },
+  'fma-remat': {
+    title: 'FMA rematerialisation',
+    what: 'On CUDA and OpenCL (when tornado.enable.fma allows fusion): each a*b + c becomes an explicit fma(a, b, c), and a product shared by several adds is recomputed at each use. Otherwise the device compiler merges the copies first and then cannot fuse them. Runs last, after value numbering, which would merge them again.',
+  },
+  'native-half': {
+    title: 'Native half arithmetic',
+    what: 'Java computes half + half as (half) ((float) a + (float) b). For +, - and * that gives the same bits as a correctly rounded half operation, so on targets with half arithmetic (CUDA sm_53+, OpenCL cl_khr_fp16) the widen-compute-round becomes one half operation. Division keeps the float path.',
+  },
   structure: {
     title: 'Structured IR',
     what: 'SSA is destroyed (block arguments become copies) and the control-flow graph is turned back into if/while/break (Ramsey 2022, "Beyond Relooper"). This is still target-neutral.',
@@ -70,6 +78,7 @@ export const PASSES = {
   unroll: 'Fully unrolls loops with a small constant trip count.',
   gvn: 'Global value numbering: an expression computed twice with the same operands is computed once and reused.',
   licm: 'Loop-invariant code motion: an expression that does not change inside a loop moves before the loop.',
+  'float-narrowing': 'Float arithmetic Java writes in double (Math takes and returns double) done in float where the result is provably the same: (float) Math.sqrt(f), floor, ceil, abs, +, -, *, / of widened floats, and comparisons. Kernels then need no double precision.',
   'math-peepholes': 'Math rewrites (tornado.enable.mathOptimizations, on by default): 1 / sqrt(x) -> rsqrt(x).',
 };
 
@@ -85,7 +94,8 @@ export const OPCODES = [
   ['fcmp', 'Floating-point comparison; o* comparisons are false when an operand is NaN, u* ones true.'],
   ['select', 'c ? a : b without a branch.'],
   ['sext', 'Sign-extend to a wider integer.'], ['zext', 'Zero-extend to a wider integer.'], ['trunc', 'Truncate to a narrower integer.'],
-  ['fptosi', 'Float to signed integer, saturating like Java.'], ['sitofp', 'Signed integer to float.'], ['fpext', 'Float to double.'], ['fptrunc', 'Double to float.'], ['bitcast', 'Reinterpret the bits.'],
+  ['f2i.sat', 'Float to integer with Java semantics: saturating at the type\'s range, NaN becomes 0.'], ['i2f', 'Signed integer to float, rounded to nearest.'],
+  ['fext', 'Widen a float (to double, or half to float): exact.'], ['ftrunc', 'Narrow a float (double to float, float to half), rounded to nearest.'], ['bitcast', 'Reinterpret the bits.'],
   ['array.load', 'Read an element of a Java array (before ABI lowering).'], ['array.store', 'Write an element of a Java array.'], ['array.length', 'The length of an array.'],
   ['field.load', 'Read a field of an object argument.'], ['field.store', 'Write a field of an object argument.'],
   ['ptr.offset', 'Pointer plus a byte offset (after ABI lowering).'], ['load', 'Read memory at an address.'], ['store', 'Write memory at an address.'],
@@ -135,10 +145,21 @@ export const OPCODES = [
   ['tornado.', 'A TornadoVM intrinsic: an operation with a direct meaning on the GPU.'],
 ];
 
-export function opcodeHelp(text) {
+const EFFECTS = { READS: 'reads memory', WRITES: 'writes memory', SIDE_EFFECT: 'has a side effect', CONVERGENT: 'every thread of the group must reach it together' };
+
+/**
+ * Help for an opcode: a TornadoVM intrinsic is described from TC's own registry (sent by the server,
+ * so it is never out of date); everything else from OPCODES.
+ */
+export function opcodeHelp(text, intrinsics = {}) {
   const m = text.match(/=\s*([a-z_][\w.]*)/) || text.match(/^\s*([a-z_][\w.]*)/);
   if (!m) return null;
   const op = m[1];
+  const def = intrinsics[op] ?? Object.values(intrinsics).find((d) => d.family && op.startsWith(d.name + '.'));
+  if (def) {
+    const effects = def.effects.length ? def.effects.map((e) => EFFECTS[e] ?? e.toLowerCase()).join(', ') : 'pure';
+    return { op, help: `TornadoVM intrinsic: ${def.description} (${effects}).` };
+  }
   for (const [prefix, help] of OPCODES) {
     if (op === prefix || op.startsWith(prefix + '.') || (prefix.endsWith('.') && op.startsWith(prefix)) || op.startsWith(prefix)) {
       return { op, help };

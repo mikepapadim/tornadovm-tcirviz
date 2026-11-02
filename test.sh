@@ -67,6 +67,33 @@ cuda = json.dumps(d["functions"][0]["snapshots"][-1]) if d["ok"] else ""
 ok = "ct::element_cast<__nv_fp8_e4m3>(ct::full<" in cuda and "ct::element_cast<float>(x) > (float) 0.3" in cuda
 print("%-16s %-7s %s" % ("TileFP8", "cuda", "ok (sm_90: FP8 through element_cast, scalar factor too)" if ok else "FAILED on sm_90: " + str([x["code"] for x in d.get("diagnostics", [])])))
 sys.exit(0 if ok else 1)' || fail=1
+# Every stage and pass the examples' traces show has an explanation in docs.js (a new TC stage or pass
+# would otherwise appear as a bare name).
+python3 - <<'PY' || fail=1
+import json, re, subprocess, glob, sys
+docs = open('src/main/resources/tcirviz/web/docs.js').read()
+def keys(name):
+    block = docs[docs.index('export const ' + name):]
+    block = block[:block.index('\n};')]
+    return set(re.findall(r"^  '?([\w.\-]+)'?:", block, re.M))
+stages, passes = keys('STAGES'), keys('PASSES')
+seen_stages, seen_passes = set(), set()
+for f in sorted(glob.glob('src/main/resources/tcirviz/examples/*.java')):
+    extra = ['--target', 'computeCapability=90'] if 'FP8' in f else []
+    extra += ['--method', 'scaleRows'] if 'DynamicParallelism' in f else []
+    for b in ['cuda', 'opencl', 'metal']:
+        d = json.loads(subprocess.run(['bin/tcirviz', '--json', f, '--backend', b] + extra, capture_output=True, text=True).stdout)
+        for fn in d.get('functions', []):
+            for s in fn['snapshots']:
+                if s.get('pass'):
+                    seen_passes.add(s['pass'])
+                elif s.get('stage'):
+                    seen_stages.add(s['stage'])
+missing = sorted(seen_stages - stages) + sorted(seen_passes - passes)
+if missing:
+    print('Docs FAILED: no explanation in docs.js for', missing); sys.exit(1)
+print('Docs             all     ok (%d stages, %d passes explained)' % (len(seen_stages), len(seen_passes)))
+PY
 # The same compile through the SDK's argfile (java @tornado-argfile: the SDK's jars on the module path).
 if [ -f "$TORNADOVM_HOME/tornado-argfile" ]; then
   "${JAVA_HOME:+$JAVA_HOME/bin/}java" @"$TORNADOVM_HOME/tornado-argfile" -cp build/tcirviz.jar io.github.mikepapadim.tcirviz.TcIrViz \

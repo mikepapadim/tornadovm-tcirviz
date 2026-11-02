@@ -23,6 +23,7 @@ import io.github.mikepapadim.tcirviz.backend.Backend;
 import io.github.mikepapadim.tcirviz.compile.AppPath;
 import io.github.mikepapadim.tcirviz.compile.JavaSources;
 import io.github.mikepapadim.tcirviz.compile.Pipeline;
+import uk.ac.manchester.tornado.tc.ir.IntrinsicRegistry;
 
 /**
  * The local web server behind the UI: static files from the jar and a small JSON API. It binds to
@@ -118,6 +119,12 @@ public final class Server {
         out.put("examples", EXAMPLE_NAMES);
         out.put("initialSource", initialSource);
         out.put("app", !app.isEmpty());
+        // TC's own description of each intrinsic, for the opcode tooltips: never out of date.
+        var intrinsics = new LinkedHashMap<String, Object>();
+        for (var def : IntrinsicRegistry.all()) {
+            intrinsics.put(def.name(), Map.of("name", def.name(), "description", def.description(), "family", def.family(), "effects", def.effects().stream().map(Enum::name).sorted().toList()));
+        }
+        out.put("intrinsics", intrinsics);
         return out;
     }
 
