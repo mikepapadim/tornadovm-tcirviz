@@ -99,6 +99,9 @@ public final class Pipeline {
         out.put("backend", Map.of("id", backend.id(), "label", backend.label(), "language", backend.language()));
         out.put("target", caps.toString());
         out.put("entry", c.entryName());
+        // False when the kernel never reads an array length: one compilation serves every array size
+        // (TornadoExecutionPlan.withDynamicShapes()).
+        out.put("readsLengths", c.readsLengths());
         var diagnostics = new ArrayList<Object>();
         for (var d : c.diagnostics()) {
             var m = new LinkedHashMap<String, Object>();

@@ -200,7 +200,8 @@ async function compile() {
   renderFunctionPick();
   useFunction();
   const ms = (n) => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
-  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
+  const shapes = r.readsLengths === false ? ' · one kernel for every array size' : r.readsLengths ? ' · specialised on array lengths' : '';
+  status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots${shapes}` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
 }
 
 /** TC-E4010 in words, over the code panes: a TileContext kernel asked for OpenCL or Metal. */

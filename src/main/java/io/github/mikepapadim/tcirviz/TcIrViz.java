@@ -34,6 +34,7 @@ public final class TcIrViz {
         String backend = "cuda";
         String classpath = null;
         String sourcepath = null;
+        Map<String, String> arguments = new LinkedHashMap<>();
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--port" -> port = Integer.parseInt(args[++i]);
@@ -43,6 +44,14 @@ public final class TcIrViz {
                 case "--backend" -> backend = args[++i];
                 case "--classpath", "-cp" -> classpath = args[++i];
                 case "--sourcepath" -> sourcepath = args[++i];
+                case "--arg" -> {
+                    String[] nameValue = args[++i].split("=", 2);
+                    if (nameValue.length != 2) {
+                        System.err.println("tcirviz: --arg takes name=value, as in --arg columns=256");
+                        System.exit(2);
+                    }
+                    arguments.put(nameValue[0], nameValue[1]);
+                }
                 case "-h", "--help" -> {
                     usage();
                     return;
@@ -53,7 +62,7 @@ public final class TcIrViz {
         if (json != null) {
             var source = Files.readString(Path.of(json));
             Map<String, String> none = new LinkedHashMap<>();
-            System.out.println(Json.write(Pipeline.compile(new Pipeline.Request(source, method, null, backend, none, true, new LinkedHashMap<>(), null), AppPath.of(classpath, sourcepath))));
+            System.out.println(Json.write(Pipeline.compile(new Pipeline.Request(source, method, null, backend, none, true, arguments, null), AppPath.of(classpath, sourcepath))));
             return;
         }
         var initial = file == null ? null : Files.readString(Path.of(file));
@@ -91,8 +100,9 @@ public final class TcIrViz {
                     --no-open                             do not open a browser
                     --classpath CP                        an application's classes: open its kernels
                     --sourcepath SP                       its sources (also found in *-sources.jar)
-                  tcirviz --json File.java [--method m] [--backend cuda|opencl|metal]
-                                                          print the compilation trace as JSON
+                  tcirviz --json File.java [--method m] [--backend cuda|opencl|metal] [--arg name=value ...]
+                                                          print the compilation trace as JSON; --arg fixes
+                                                          a scalar argument, as the UI's Arguments do
                 """);
     }
 }

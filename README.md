@@ -63,7 +63,13 @@ Metal. See [docs/architecture.md](docs/architecture.md) for adding a target.
 selected. The *Tiles* stage gives every view and tile its static shape (`tileview<F16, 32, 32>`,
 `tile<F32, 32, 32>`), and hovering a `tile.*` op explains it. Their int arguments start unknown, so
 the views keep symbolic extents; set them to see sizes fold. Try the *TileMatmul* example, or the
-SDK's own (`tornado-examples/.../examples/tile/`).
+SDK's own (`tornado-examples/.../examples/tile/`). *TileRowSums* shows when a load or store is
+masked: only when every extent of the view is a constant the tile shape divides does TC keep the
+plain form (set `rows` to 64 and `columns` to 100, then 256).
+
+**Array sizes.** The status line says whether the kernel reads an array length. One that does not
+(it takes its sizes as arguments) compiles once for every array size when its plan uses
+`withDynamicShapes()`; one that does is specialised on the lengths it runs with.
 
 | | |
 |---|---|
@@ -71,18 +77,20 @@ SDK's own (`tornado-examples/.../examples/tile/`).
 
 ## Install
 
-You need a TornadoVM SDK built from `mikepapadim/tornadovm-compiler` (branch `compiler/main`, with
-`TcTrace`), and JDK 21 or newer.
+You need a TornadoVM SDK 8.0.0 or newer, built from [beehive-lab/TornadoVM](https://github.com/beehive-lab/TornadoVM)
+(`develop`, whose compiler is TC), and JDK 21 or newer. Tested against `develop` at 733af65 on CUDA,
+OpenCL and Metal.
 
 ```bash
-source ~/tornadovm-compiler/setvars.sh      # TORNADOVM_HOME, JAVA_HOME
+source ~/TornadoVM/setvars.sh               # TORNADOVM_HOME, JAVA_HOME
 ./install.sh                                # builds build/tcirviz.jar and copies it into the SDK
 tornado --tcirviz                           # or: tornado --tcirviz MyKernels.java
 tornado --tcirviz --params "--port 9000 --no-open"
 ```
 
 Without the launcher, run `bin/tcirviz [File.java] [--port N] [--no-open]`. To print the trace as
-JSON for scripts, run `bin/tcirviz --json File.java [--method m] [--backend cuda|opencl|metal]`.
+JSON for scripts, run `bin/tcirviz --json File.java [--method m] [--backend cuda|opencl|metal] [--arg name=value ...]`;
+`--arg` fixes a scalar argument, as the *Arguments* row does.
 
 ### With `java` and the SDK's argfile
 
@@ -91,7 +99,7 @@ The SDK's `tornado-argfile` holds the JVM options a TornadoVM application runs w
 how to start it from an IDE run configuration or a script with no Python launcher:
 
 ```bash
-source ~/tornadovm-compiler/setvars.sh
+source ~/TornadoVM/setvars.sh
 TCIRVIZ=$TORNADOVM_HOME/share/java/tcirviz/tcirviz.jar          # after ./install.sh (or build/tcirviz.jar)
 
 # the UI, on an example or your own kernels
@@ -155,7 +163,7 @@ point. The TC compiler comes from your TornadoVM SDK, so pass its jars with `--c
 of this repository:
 
 ```bash
-source ~/tornadovm-compiler/setvars.sh       # TORNADOVM_HOME and JAVA_HOME (JDK 21+)
+source ~/TornadoVM/setvars.sh                # TORNADOVM_HOME and JAVA_HOME (JDK 21+)
 TORNADO_CP="$TORNADOVM_HOME/share/java/tornado/*"
 
 jbang --cp "$TORNADO_CP" tcirviz.java                      # the UI

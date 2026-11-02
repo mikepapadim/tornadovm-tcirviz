@@ -23,6 +23,22 @@ for b in cuda opencl metal; do
   [ "$n" -eq 2 ] && printf '%-16s %-7s ok (zero best, zero counts)\n' PrivateArrays "$b" \
     || { printf '%-16s %-7s FAILED: expected zero best/counts in the structured IR\n' PrivateArrays "$b"; fail=1; }
 done
+# A tile that may cross the edge of its tensor is loaded/stored masked unless every extent is a constant
+# the tile shape divides (--arg fixes rows and columns as the UI's Arguments do).
+masked() { bin/tcirviz --json src/main/resources/tcirviz/examples/TileRowSums.java --backend cuda "$@" \
+  | python3 -c 'import json, sys; d = json.load(sys.stdin); print(json.dumps(d["functions"][0]["snapshots"][-1]).count("_masked"))'; }
+for c in ":2" "rows=64 columns=100:1" "rows=64 columns=256:0"; do
+  args=${c%:*}; want=${c##*:}; flags=""; for a in $args; do flags="$flags --arg $a"; done
+  got=$(masked $flags)
+  [ "$got" = "$want" ] && printf '%-16s %-7s ok (%s masked accesses with %s)\n' TileRowSums cuda "$want" "${args:-no arguments}" \
+    || { printf '%-16s %-7s FAILED: %s masked accesses with %s, expected %s\n' TileRowSums cuda "$got" "${args:-no arguments}" "$want"; fail=1; }
+done
+# readsLengths: MatrixMultiply takes its sizes as arguments (one kernel for every array size); VectorAdd reads c.getSize().
+for c in "MatrixMultiply:False" "VectorAdd:True"; do
+  got=$(bin/tcirviz --json "src/main/resources/tcirviz/examples/${c%%:*}.java" --backend cuda | python3 -c 'import json, sys; print(json.load(sys.stdin)["readsLengths"])')
+  [ "$got" = "${c##*:}" ] && printf '%-16s %-7s ok (readsLengths %s)\n' "${c%%:*}" cuda "$got" \
+    || { printf '%-16s %-7s FAILED: readsLengths %s, expected %s\n' "${c%%:*}" cuda "$got" "${c##*:}"; fail=1; }
+done
 # The same compile through the SDK's argfile (java @tornado-argfile: the SDK's jars on the module path).
 if [ -f "$TORNADOVM_HOME/tornado-argfile" ]; then
   "${JAVA_HOME:+$JAVA_HOME/bin/}java" @"$TORNADOVM_HOME/tornado-argfile" -cp build/tcirviz.jar io.github.mikepapadim.tcirviz.TcIrViz \
@@ -49,6 +65,8 @@ if 'only on CUDA' not in r.get('tileNotice', '') or not r.get('tileMetalMarked')
     problems.append('tile')
 if not r.get('importStatus', '').startswith('scale'):
     problems.append('import')
+if 'array size' not in r.get('status', '') and 'array lengths' not in r.get('status', ''):
+    problems.append('array-size status')
 if r['errors'] or problems or not r['openclHasKernel'] or 'Metal' not in r['metalStatus'] or 'TC-E' in r['metalStatus']:
     print('UI check FAILED:', r['errors'], problems); sys.exit(1)
 print('UI check ok: %d chips, journey %d steps, no console errors' % (r['chips'], r['valueSteps']))
