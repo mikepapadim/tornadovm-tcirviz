@@ -116,12 +116,22 @@ report.tileMetalMarked = await evaluate(`[...document.querySelectorAll('#backend
 report.tileContextInput = await evaluate(`!!document.querySelector('#args input[data-name="tc"]')`);
 await shot('08-tile-notice');
 // "Show on CUDA" compiles it there and the notice goes away
-await evaluate(`document.querySelector('#cuda-only-go').click()`);
+await evaluate(`document.querySelector('#notice-go').click()`);
 await waitFor(`document.querySelector('#status').textContent.includes('CUDA') && document.querySelector('#cuda-only').hidden`);
 report.tileStatus = await evaluate(`document.querySelector('#status').textContent`);
 await shot('09-tile-cuda');
 await evaluate(`[...document.querySelectorAll('#backends button')].find(b => b.textContent === 'CUDA').click()`);
 await sleep(1500);
+// FP8 tiles on the default sm_89: a notice names the compute capability they need and switches to it
+await evaluate(`(() => { const s = document.querySelector('#example'); s.value = 'TileFP8'; s.dispatchEvent(new Event('change')); })()`);
+await waitFor(`!document.querySelector('#cuda-only').hidden`);
+report.fp8Notice = await evaluate(`document.querySelector('#cuda-only h3')?.textContent ?? ''`);
+await shot('10-fp8-notice');
+await evaluate(`document.querySelector('#notice-go').click()`);
+await waitFor(`document.querySelector('#status').textContent.startsWith('scaleAndCompare →') && document.querySelector('#cuda-only').hidden`);
+report.fp8Status = await evaluate(`document.querySelector('#status').textContent`);
+report.fp8Casts = await evaluate(`[...document.querySelectorAll('#pane-b .ln')].filter(l => l.textContent.includes('element_cast<__nv_fp8_e4m3>')).length`);
+await shot('11-fp8-sm90');
 // Import .java: a file given to the picker replaces the editor's text and is compiled
 await evaluate(`(() => {
   const dt = new DataTransfer();

@@ -67,6 +67,10 @@ SDK's own (`tornado-examples/.../examples/tile/`). *TileRowSums* shows when a lo
 masked: only when every extent of the view is a constant the tile shape divides does TC keep the
 plain form (set `rows` to 64 and `columns` to 100, then 256).
 
+**FP8 tiles** need compute capability 9.0. On a lower one TC refuses them (TC-E4011), and a notice
+offers to compile for the capability the message names. *TileFP8* shows how FP8 operations widen to
+float and round back with `ct::element_cast`.
+
 **Kernels launched from the GPU.** `KernelContext.launch` (CUDA Dynamic Parallelism) compiles the
 child into the same CUDA module as a kernel of its own, listed by the function selector; the parent's
 CUDA source shows the `child<<<grid, block>>>` launch and its check. Try *DynamicParallelism*: one
@@ -96,7 +100,7 @@ tornado --tcirviz --params "--port 9000 --no-open"
 
 Without the launcher, run `bin/tcirviz [File.java] [--port N] [--no-open]`. To print the trace as
 JSON for scripts, run `bin/tcirviz --json File.java [--method m] [--backend cuda|opencl|metal] [--arg name=value ...]`;
-`--arg` fixes a scalar argument, as the *Arguments* row does.
+`--arg` fixes a scalar argument, as the *Arguments* row does; `--target computeCapability=90` sets a target option.
 
 ### With `java` and the SDK's argfile
 

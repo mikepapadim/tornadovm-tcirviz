@@ -192,10 +192,10 @@ async function compile() {
   renderKernels(r);
   renderArgs(r);
   renderProblems(r);
-  if (r.error) { renderCudaOnly(null); status(r.error, true); return; }
+  if (r.error) { renderNotice(null); status(r.error, true); return; }
   S.tileKernel = (r.params || []).some((p) => p.type === 'TileContext');
   renderBackends();
-  renderCudaOnly(!r.ok && r.diagnostics?.some((d) => d.code === 'TC-E4010') ? r : null);
+  renderNotice(r.ok ? null : r);
   S.fn = 0;
   renderFunctionPick();
   useFunction();
@@ -204,21 +204,42 @@ async function compile() {
   status(r.ok ? `${r.method} → ${r.backend.label}: TC ${ms(r.tcNanos)} ms · ${countIr()} IR snapshots${shapes}` : `${r.diagnostics?.[0]?.code ?? 'error'}: ${r.diagnostics?.[0]?.message ?? 'see problems'}`, !r.ok);
 }
 
-/** TC-E4010 in words, over the code panes: a TileContext kernel asked for OpenCL or Metal. */
-function renderCudaOnly(r) {
+/**
+ * A refusal that a different target fixes, in words over the code panes, with a button that switches:
+ * TC-E4010 (TileContext kernel, CUDA Tile C++ only), TC-E4016 (KernelContext.launch, CUDA dynamic
+ * parallelism only), and TC-E4011 when it names the compute capability the kernel needs.
+ */
+function renderNotice(r) {
   const box = $('#cuda-only');
-  box.hidden = !r;
-  if (!r) return;
+  const d = (code) => r?.diagnostics?.find((x) => x.code === code);
   const target = S.info.backends.find((b) => b.id === S.backend)?.label ?? S.backend;
+  const showOnCuda = () => { S.backend = 'cuda'; store.set('backend', 'cuda'); renderBackends(); compile(); };
+  let card = null;
+  if (d('TC-E4010')) {
+    card = { title: 'TileContext kernels run only on CUDA', button: 'Show on CUDA', go: showOnCuda,
+      body: `<p><code>${esc(r.method)}</code> takes a <code>TileContext</code>, so TC compiles it to CUDA Tile C++ (<code>cuda_tile.h</code>).
+        ${esc(target)} has no equivalent, and TC stops at the legality stage with <b>TC-E4010</b>.</p>
+        <p class="m">Kernels written with <code>@Parallel</code> loops or <code>KernelContext</code> run on every target.</p>` };
+  } else if (d('TC-E4016')) {
+    card = { title: 'Kernels launched from the GPU run only on CUDA', button: 'Show on CUDA', go: showOnCuda,
+      body: `<p><code>${esc(r.method)}</code> calls <code>KernelContext.launch</code>: CUDA Dynamic Parallelism, a kernel starting a grid
+        of its own. ${esc(target)} has no equivalent, and TC refuses it with <b>TC-E4016</b>.</p>` };
+  } else if (S.backend === 'cuda' && /compute capability (\d+)\.(\d+)/.test(d('TC-E4011')?.message ?? '')) {
+    const [, major, minor] = d('TC-E4011').message.match(/compute capability (\d+)\.(\d+)/);
+    const cc = major + minor;
+    const choices = S.info.backends.find((b) => b.id === 'cuda')?.options?.computeCapability ?? [];
+    if (choices.includes(cc)) {
+      card = { title: `Needs compute capability ${major}.${minor}`, button: `Compile for sm_${cc}`,
+        go: () => { S.targetOptions.computeCapability = cc; store.set('targetOptions', S.targetOptions); renderBackends(); compile(); },
+        body: `<p>${esc(d('TC-E4011').message)} (<b>TC-E4011</b>).</p>
+          <p class="m">tcirviz compiles without a GPU: pick the target's compute capability to see the code TC generates for it.</p>` };
+    }
+  }
+  box.hidden = !card;
+  if (!card) return;
   box.style.left = $('#pane-a').offsetLeft + 'px';
-  box.innerHTML = `<div class="card">
-    <h3>TileContext kernels run only on CUDA</h3>
-    <p><code>${esc(r.method)}</code> takes a <code>TileContext</code>, so TC compiles it to CUDA Tile C++ (<code>cuda_tile.h</code>).
-    ${esc(target)} has no equivalent, and TC stops at the legality stage with <b>TC-E4010</b>.</p>
-    <p class="m">Kernels written with <code>@Parallel</code> loops or <code>KernelContext</code> run on every target.</p>
-    <button class="primary" id="cuda-only-go">Show on CUDA</button>
-  </div>`;
-  $('#cuda-only-go').onclick = () => { S.backend = 'cuda'; store.set('backend', 'cuda'); renderBackends(); compile(); };
+  box.innerHTML = `<div class="card"><h3>${card.title}</h3>${card.body}<button class="primary" id="notice-go">${esc(card.button)}</button></div>`;
+  $('#notice-go').onclick = card.go;
 }
 
 function countIr() { return S.snaps.filter((s) => s.kind === 'ir').length; }
