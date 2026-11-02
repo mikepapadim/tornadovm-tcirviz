@@ -67,6 +67,12 @@ SDK's own (`tornado-examples/.../examples/tile/`). *TileRowSums* shows when a lo
 masked: only when every extent of the view is a constant the tile shape divides does TC keep the
 plain form (set `rows` to 64 and `columns` to 100, then 256).
 
+**Kernels launched from the GPU.** `KernelContext.launch` (CUDA Dynamic Parallelism) compiles the
+child into the same CUDA module as a kernel of its own, listed by the function selector; the parent's
+CUDA source shows the `child<<<grid, block>>>` launch and its check. Try *DynamicParallelism*: one
+parent thread per row of a ragged matrix launches a grid sized to that row. OpenCL and Metal refuse
+it (TC-E4016). The kernel picker lists public methods first, so it opens on the entry point.
+
 **Array sizes.** The status line says whether the kernel reads an array length. One that does not
 (it takes its sizes as arguments) compiles once for every array size when its plan uses
 `withDynamicShapes()`; one that does is specialised on the lengths it runs with.

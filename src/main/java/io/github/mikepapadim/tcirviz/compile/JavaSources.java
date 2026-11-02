@@ -147,7 +147,9 @@ public final class JavaSources {
     private static List<KernelMethod> kernelsOf(Class<?> type) {
         var kernels = new ArrayList<KernelMethod>();
         var methods = new ArrayList<>(List.of(type.getDeclaredMethods()));
-        methods.sort(Comparator.comparing(Method::getName));
+        // Public methods first: the host calls those; private ones are helpers or kernels launched from the
+        // device (KernelContext.launch), so the kernel picker opens on the entry point.
+        methods.sort(Comparator.comparing((Method m) -> !Modifier.isPublic(m.getModifiers())).thenComparing(Method::getName));
         for (var m : methods) {
             if (Modifier.isStatic(m.getModifiers()) && m.getReturnType() == void.class && !m.isSynthetic() && !m.getName().equals("main") && kernelParameters(m)) {
                 boolean kc = List.of(m.getParameterTypes()).stream().anyMatch(p -> p.getName().equals(API + ".KernelContext"));

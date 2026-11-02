@@ -13,6 +13,11 @@ for f in src/main/resources/tcirviz/examples/*.java; do
         bin/tcirviz --json "$f" --backend "$b" | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if any(x["code"] == "TC-E4010" for x in d["diagnostics"]) else 1)' \
           && printf '%-16s %-7s ok (TC-E4010: CUDA only)\n' "$(basename "$f" .java)" "$b" \
           || { printf '%-16s %-7s FAILED: no TC-E4010\n' "$(basename "$f" .java)" "$b"; fail=1; } ;;
+      # Device-side launches are CUDA Dynamic Parallelism: elsewhere the compiler must say so (TC-E4016).
+      DynamicParallelism*/opencl | DynamicParallelism*/metal)
+        bin/tcirviz --json "$f" --backend "$b" | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if any(x["code"] == "TC-E4016" for x in d["diagnostics"]) else 1)' \
+          && printf '%-16s %-7s ok (TC-E4016: CUDA only)\n' "$(basename "$f" .java)" "$b" \
+          || { printf '%-16s %-7s FAILED: no TC-E4016\n' "$(basename "$f" .java)" "$b"; fail=1; } ;;
       *) bin/tcirviz --json "$f" --backend "$b" | python3 tools/check-trace.py "$(basename "$f" .java)" "$b" || fail=1 ;;
     esac
   done
@@ -39,6 +44,15 @@ for c in "MatrixMultiply:False" "VectorAdd:True"; do
   [ "$got" = "${c##*:}" ] && printf '%-16s %-7s ok (readsLengths %s)\n' "${c%%:*}" cuda "$got" \
     || { printf '%-16s %-7s FAILED: readsLengths %s, expected %s\n' "${c%%:*}" cuda "$got" "${c##*:}"; fail=1; }
 done
+# KernelContext.launch: the parent's CUDA launches the child, which is compiled as a kernel of its own.
+bin/tcirviz --json src/main/resources/tcirviz/examples/DynamicParallelism.java --backend cuda | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+names = [f["name"] for f in d["functions"]]
+parent = json.dumps(d["functions"][0]["snapshots"][-1])
+ok = d["ok"] and d["method"] == "scaleRows" and "DynamicParallelism.scaleRow_dp" in names and "scaleRow_dp<<<_dp_grid, _dp_block>>>" in parent and "tc_device_launch_check" in parent
+print("%-16s %-7s %s" % ("DynamicParallelism", "cuda", "ok (scaleRows launches scaleRow_dp<<<>>>)" if ok else "FAILED: " + str(names)))
+sys.exit(0 if ok else 1)' || fail=1
 # The same compile through the SDK's argfile (java @tornado-argfile: the SDK's jars on the module path).
 if [ -f "$TORNADOVM_HOME/tornado-argfile" ]; then
   "${JAVA_HOME:+$JAVA_HOME/bin/}java" @"$TORNADOVM_HOME/tornado-argfile" -cp build/tcirviz.jar io.github.mikepapadim.tcirviz.TcIrViz \
